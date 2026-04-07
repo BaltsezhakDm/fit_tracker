@@ -6,10 +6,11 @@ import ProgramsView from './components/ProgramsView';
 import AddWorkoutSessionView from './components/AddWorkoutSessionView';
 import CreateProgramView from './components/CreateProgramView';
 import StatsView from './components/StatsView';
+import WorkoutTimer from './components/WorkoutTimer';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('diary'); // diary, programs, add, stats, createProgram
-  const { workouts, programs, isDbLoading, saveWorkoutSession, saveProgram } = useAppData();
+  const { workouts, programs, isDbLoading, saveWorkoutSession, saveProgram, deleteWorkout, deleteProgram } = useAppData();
 
   const [activeTemplate, setActiveTemplate] = useState(null);
 
@@ -49,8 +50,8 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-20 selection:bg-blue-200 relative">
-      <header className="bg-white px-4 pt-6 pb-4 shadow-sm sticky top-0 z-10 flex justify-between items-center">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-20 selection:bg-blue-200 relative pl-safe pr-safe pt-safe">
+      <header className="bg-white/80 backdrop-blur-md px-4 pt-4 pb-4 shadow-sm sticky top-0 z-10 flex justify-between items-center">
         <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
           <Activity className="text-blue-500" />
           FitTracker
@@ -58,13 +59,14 @@ export default function App() {
       </header>
 
       <main className="p-4">
-        {activeTab === 'diary' && <DiaryView workouts={workouts} />}
+        {activeTab === 'diary' && <DiaryView workouts={workouts} onDeleteWorkout={deleteWorkout} />}
 
         {activeTab === 'programs' && (
           <ProgramsView
             programs={programs}
             onStart={handleStartProgram}
             onCreateNew={() => setActiveTab('createProgram')}
+            onDeleteProgram={deleteProgram}
           />
         )}
 
@@ -85,6 +87,8 @@ export default function App() {
 
         {activeTab === 'stats' && <StatsView workouts={workouts} />}
       </main>
+
+      <WorkoutTimer />
 
       <nav className="fixed bottom-0 w-full bg-white border-t border-slate-200 flex justify-around items-center h-16 px-2 z-20 pb-safe">
         <NavButton icon={<CalendarDays size={22} />} label="Дневник" isActive={activeTab === 'diary'} onClick={() => setActiveTab('diary')} />

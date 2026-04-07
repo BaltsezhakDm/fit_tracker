@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Dumbbell, CalendarDays } from 'lucide-react';
+import SwipeToDelete from './SwipeToDelete';
 
 function getSetWord(count) {
   const remainder = count % 10;
@@ -9,7 +10,7 @@ function getSetWord(count) {
   return 'подходов';
 }
 
-export default function DiaryView({ workouts }) {
+export default function DiaryView({ workouts, onDeleteWorkout }) {
   const groupedWorkouts = useMemo(() => {
     const groups = {};
     workouts.forEach(w => {
@@ -41,24 +42,26 @@ export default function DiaryView({ workouts }) {
           </h2>
           <div className="space-y-3">
             {group.exercises.map(ex => (
-              <div key={ex.id} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-                <div className="flex justify-between items-center mb-3">
-                  <h3 className="font-bold text-slate-800 text-lg leading-tight">{ex.exercise}</h3>
-                  <span className="bg-blue-50 text-blue-600 text-xs font-bold px-2 py-1 rounded-lg whitespace-nowrap ml-2">
-                    {ex.sets.length} {getSetWord(ex.sets.length)}
-                  </span>
+              <SwipeToDelete key={ex.id} onDelete={() => onDeleteWorkout(ex.id)}>
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="font-bold text-slate-800 text-lg leading-tight">{ex.exercise}</h3>
+                    <span className="bg-blue-50 text-blue-600 text-xs font-bold px-2 py-1 rounded-lg whitespace-nowrap ml-2">
+                      {ex.sets.length} {getSetWord(ex.sets.length)}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {ex.sets.map((set, idx) => (
+                      <div key={idx} className="flex justify-between items-center text-sm bg-slate-50 p-2 rounded-xl">
+                        <span className="text-slate-500 font-medium">Подход {idx + 1}</span>
+                        <span className="font-semibold text-slate-700">
+                          {set.weight} кг <span className="text-slate-400 font-normal mx-1">×</span> {set.reps} повт.
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  {ex.sets.map((set, idx) => (
-                    <div key={idx} className="flex justify-between items-center text-sm bg-slate-50 p-2 rounded-xl">
-                      <span className="text-slate-500 font-medium">Подход {idx + 1}</span>
-                      <span className="font-semibold text-slate-700">
-                        {set.weight} кг <span className="text-slate-400 font-normal mx-1">×</span> {set.reps} повт.
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              </SwipeToDelete>
             ))}
           </div>
         </div>

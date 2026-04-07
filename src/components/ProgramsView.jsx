@@ -1,7 +1,8 @@
 import React from 'react';
 import { FolderOpen, Plus, Play } from 'lucide-react';
+import SwipeToDelete from './SwipeToDelete';
 
-export default function ProgramsView({ programs, onStart, onCreateNew }) {
+export default function ProgramsView({ programs, onStart, onCreateNew, onDeleteProgram }) {
   return (
     <div className="animate-in fade-in duration-300">
       <div className="flex justify-between items-center mb-6">
@@ -19,30 +20,32 @@ export default function ProgramsView({ programs, onStart, onCreateNew }) {
       ) : (
         <div className="space-y-4">
           {programs.map(prog => (
-            <div key={prog.id} className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 relative overflow-hidden">
-              <h3 className="font-bold text-lg text-slate-800 mb-1">{prog.name}</h3>
-              <p className="text-sm text-slate-500 mb-4">{prog.exercises.length} упражнений</p>
+            <SwipeToDelete key={prog.id} onDelete={() => onDeleteProgram(prog.id)}>
+              <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 relative overflow-hidden">
+                <h3 className="font-bold text-lg text-slate-800 mb-1">{prog.name}</h3>
+                <p className="text-sm text-slate-500 mb-4">{prog.exercises.length} упражнений</p>
 
-              <div className="space-y-2 mb-5">
-                {prog.exercises.slice(0, 3).map((ex, i) => (
-                  <div key={i} className="text-sm text-slate-600 flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-300"></div>
-                    <span className="truncate">{ex.name}</span>
-                    <span className="text-slate-400 text-xs ml-auto whitespace-nowrap">{ex.targetSets} × {ex.targetReps}</span>
-                  </div>
-                ))}
-                {prog.exercises.length > 3 && (
-                  <p className="text-xs text-slate-400 italic">И еще {prog.exercises.length - 3}...</p>
-                )}
+                <div className="space-y-2 mb-5">
+                  {prog.exercises.slice(0, 3).map((ex, i) => (
+                    <div key={i} className="text-sm text-slate-600 flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-300"></div>
+                      <span className="truncate">{ex.name}</span>
+                      <span className="text-slate-400 text-xs ml-auto whitespace-nowrap">{ex.targetSets} × {ex.targetReps}</span>
+                    </div>
+                  ))}
+                  {prog.exercises.length > 3 && (
+                    <p className="text-xs text-slate-400 italic">И еще {prog.exercises.length - 3}...</p>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => onStart(prog)}
+                  className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors flex justify-center items-center gap-2"
+                >
+                  <Play size={18} fill="currentColor" /> Начать тренировку
+                </button>
               </div>
-
-              <button
-                onClick={() => onStart(prog)}
-                className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors flex justify-center items-center gap-2"
-              >
-                <Play size={18} fill="currentColor" /> Начать тренировку
-              </button>
-            </div>
+            </SwipeToDelete>
           ))}
         </div>
       )}
