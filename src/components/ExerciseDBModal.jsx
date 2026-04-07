@@ -1,36 +1,47 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Dumbbell, X } from 'lucide-react';
 
-const FALLBACK_CATEGORIES = {
-  1: 'Chest',
-  2: 'Legs',
-  3: 'Back',
-  4: 'Arms',
-  5: 'Abs',
-  6: 'Shoulders'
+const DATA_URL = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json';
+const IMG_BASE_URL = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/';
+
+const MUSCLE_TRANSLATIONS = {
+  abdominals: 'Пресс',
+  abductors: 'Отводящие',
+  adductors: 'Приводящие',
+  biceps: 'Бицепс',
+  calves: 'Икры',
+  chest: 'Грудь',
+  forearms: 'Предплечья',
+  glutes: 'Ягодицы',
+  hamstrings: 'Бицепс бедра',
+  lats: 'Широчайшие',
+  'lower back': 'Поясница',
+  'middle back': 'Средняя часть спины',
+  neck: 'Шея',
+  quadriceps: 'Квадрицепс',
+  shoulders: 'Плечи',
+  traps: 'Трапеции',
+  triceps: 'Трицепс'
 };
 
 const FALLBACK_EXERCISES = [
-  { id: 'f1', name: 'Bench Press', category: 1 },
-  { id: 'f2', name: 'Squat', category: 2 },
-  { id: 'f3', name: 'Deadlift', category: 3 },
-  { id: 'f4', name: 'Pull-up', category: 3 },
-  { id: 'f5', name: 'Dumbbell Curl', category: 4 },
-  { id: 'f6', name: 'Crunch', category: 5 },
-  { id: 'f7', name: 'Shoulder Press', category: 6 },
-  { id: 'f8', name: 'Leg Press', category: 2 }
+  { id: 'f1', name: 'Bench Press', primaryMuscles: ['chest'] },
+  { id: 'f2', name: 'Squat', primaryMuscles: ['quadriceps'] },
+  { id: 'f3', name: 'Deadlift', primaryMuscles: ['hamstrings'] },
+  { id: 'f4', name: 'Pull-up', primaryMuscles: ['lats'] },
+  { id: 'f5', name: 'Dumbbell Curl', primaryMuscles: ['biceps'] },
+  { id: 'f6', name: 'Crunch', primaryMuscles: ['abdominals'] },
+  { id: 'f7', name: 'Shoulder Press', primaryMuscles: ['shoulders'] },
+  { id: 'f8', name: 'Leg Press', primaryMuscles: ['quadriceps'] }
 ];
 
 export default function ExerciseDBModal({ onClose, onSelect }) {
   const [search, setSearch] = useState('');
-  const [exercises, setExercises] = useState([]);
+  const [allExercises, setAllExercises] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeCategory, setActiveCategory] = useState('Все');
-
-  const [categoryMap, setCategoryMap] = useState(FALLBACK_CATEGORIES);
-  const [imageMap, setImageMap] = useState({});
-  const [nextUrl, setNextUrl] = useState(null);
+  const [visibleCount, setVisibleCount] = useState(40);
 
   useEffect(() => {
     let isMounted = true;
@@ -39,49 +50,26 @@ export default function ExerciseDBModal({ onClose, onSelect }) {
       setLoading(true);
       setError(null);
 
-      const pCat = fetch('https://wger.de/api/v2/exercisecategory/', { headers: { 'Accept': 'application/json' } })
-        .then(res => res.json())
-        .catch(e => { console.error('Ошибка категорий:', e); return null; });
+      try {
+        const res = await fetch(DATA_URL);
+        if (!res.ok) throw new Error('Bad network response');
+        const data = await res.json();
 
-      const pImg = fetch('https://wger.de/api/v2/exerciseimage/?is_main=True&limit=300', { headers: { 'Accept': 'application/json' } })
-        .then(res => res.json())
-        .catch(e => { console.error('Ошибка картинок:', e); return null; });
+        if (!isMounted) return;
 
-      const pExc = fetch('https://wger.de/api/v2/exercise/?language=2&limit=40', { headers: { 'Accept': 'application/json' } })
-        .then(res => {
-          if (!res.ok) throw new Error('Bad network response');
-          return res.json();
-        })
-        .catch(e => { console.error('Ошибка упражнений:', e); return null; });
-
-      const [catData, imgData, excData] = await Promise.all([pCat, pImg, pExc]);
-
-      if (!isMounted) return;
-
-      if (catData && catData.results) {
-        const map = { ...FALLBACK_CATEGORIES };
-        catData.results.forEach(c => map[c.id] = c.name);
-        setCategoryMap(map);
-      }
-
-      if (imgData && imgData.results) {
-        const map = {};
-        imgData.results.forEach(img => {
-          if (img.exercise) map[img.exercise] = img.image;
-          if (img.exercise_base) map[img.exercise_base] = img.image;
-        });
-        setImageMap(map);
-      }
-
-      if (excData && excData.results && excData.results.length > 0) {
-        setExercises(excData.results.filter(ex => ex.name));
-        setNextUrl(excData.next ? excData.next.replace('http://', 'https://') : null);
-      } else {
-        setExercises(FALLBACK_EXERCISES);
+        if (data && data.length > 0) {
+          setAllExercises(data);
+        } else {
+          throw new Error('Empty data');
+        }
+      } catch (err) {
+        if (!isMounted) return;
+        console.error('Ошибка загрузки упражнений:', err);
+        setAllExercises(FALLBACK_EXERCISES);
         setError("Не удалось загрузить базу. Включен офлайн-режим (тестовые данные).");
       }
 
-      setLoading(false);
+      if (isMounted) setLoading(false);
     };
 
     initData();
@@ -89,34 +77,32 @@ export default function ExerciseDBModal({ onClose, onSelect }) {
     return () => { isMounted = false; };
   }, []);
 
-  const loadMore = async () => {
-    if (!nextUrl) return;
-    setLoading(true);
-    try {
-      const res = await fetch(nextUrl, { headers: { 'Accept': 'application/json' } });
-      const data = await res.json();
-      if (data && data.results) {
-        setExercises(prev => {
-          const existingIds = new Set(prev.map(p => p.id));
-          const newEx = data.results.filter(ex => !existingIds.has(ex.id) && ex.name);
-          return [...prev, ...newEx];
-        });
-        setNextUrl(data.next ? data.next.replace('http://', 'https://') : null);
-      }
-    } catch (err) {
-      console.error("Ошибка загрузки следующей страницы:", err);
-    }
-    setLoading(false);
+  const getCategoryName = (ex) => {
+    if (!ex.primaryMuscles || ex.primaryMuscles.length === 0) return 'Другое';
+    const muscle = ex.primaryMuscles[0];
+    return MUSCLE_TRANSLATIONS[muscle] || muscle.charAt(0).toUpperCase() + muscle.slice(1);
   };
 
-  const categoriesList = ['Все', ...Array.from(new Set(exercises.map(ex => categoryMap[ex.category] || 'Other'))).filter(Boolean)];
+  const categoriesSet = new Set(allExercises.map(getCategoryName));
+  const categoriesList = ['Все', ...Array.from(categoriesSet).sort()];
 
-  const filteredExercises = exercises.filter(ex => {
-    const catName = categoryMap[ex.category] || 'Other';
+  const filteredExercises = allExercises.filter(ex => {
+    const catName = getCategoryName(ex);
     const matchSearch = ex.name.toLowerCase().includes(search.toLowerCase());
     const matchCat = activeCategory === 'Все' || catName === activeCategory;
     return matchSearch && matchCat;
   });
+
+  const displayedExercises = filteredExercises.slice(0, visibleCount);
+
+  const loadMore = () => {
+    setVisibleCount(prev => prev + 40);
+  };
+
+  // Reset visible count when filters change
+  useEffect(() => {
+    setVisibleCount(40);
+  }, [search, activeCategory]);
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col animate-in slide-in-from-bottom duration-300">
@@ -158,9 +144,11 @@ export default function ExerciseDBModal({ onClose, onSelect }) {
           </div>
         )}
 
-        {filteredExercises.map(ex => {
-          const catName = categoryMap[ex.category] || 'Other';
-          const imageUrl = imageMap[ex.id] || imageMap[ex.exercise_base] || imageMap[ex.exercise];
+        {displayedExercises.map(ex => {
+          const catName = getCategoryName(ex);
+          const imageUrl = ex.images && ex.images.length > 0
+            ? `${IMG_BASE_URL}${ex.images[0]}`
+            : null;
 
           return (
             <button
@@ -203,7 +191,7 @@ export default function ExerciseDBModal({ onClose, onSelect }) {
           </div>
         )}
 
-        {!loading && nextUrl && filteredExercises.length > 0 && (
+        {!loading && visibleCount < filteredExercises.length && (
           <button
             onClick={loadMore}
             className="w-full py-4 mt-2 text-blue-600 font-semibold border-2 border-dashed border-blue-100 rounded-xl hover:bg-blue-50 transition-colors"
