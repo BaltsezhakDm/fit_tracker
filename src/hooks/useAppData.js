@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 
 const INITIAL_WORKOUTS = [
   { id: 1, date: '2026-04-01', exercise: 'Жим лежа', sets: [{ reps: 10, weight: 60 }, { reps: 8, weight: 65 }, { reps: 6, weight: 70 }] },
@@ -65,11 +65,17 @@ export function useAppData() {
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (!user || !db) return;
+  const getUserId = () => {
+    const tgUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+    return tgUserId ? `tg-${tgUserId}` : user?.uid;
+  };
 
-    const workoutsRef = collection(db, 'artifacts', appId, 'users', user.uid, 'workouts');
-    const programsRef = collection(db, 'artifacts', appId, 'users', user.uid, 'programs');
+  useEffect(() => {
+    const userId = getUserId();
+    if (!userId || !db) return;
+
+    const workoutsRef = collection(db, 'artifacts', appId, 'users', userId, 'workouts');
+    const programsRef = collection(db, 'artifacts', appId, 'users', userId, 'programs');
 
     let workoutsLoaded = false;
     let programsLoaded = false;
@@ -119,9 +125,10 @@ export function useAppData() {
     setWorkouts(updatedWorkouts);
     localStorage.setItem('workouts', JSON.stringify(updatedWorkouts));
 
-    if (!user || !db) return;
+    const userId = getUserId();
+    if (!userId || !db) return;
 
-    const workoutsRef = collection(db, 'artifacts', appId, 'users', user.uid, 'workouts');
+    const workoutsRef = collection(db, 'artifacts', appId, 'users', userId, 'workouts');
     try {
       for (const w of newWorkouts) {
         await setDoc(doc(workoutsRef, w.id), w);
@@ -138,13 +145,44 @@ export function useAppData() {
     setPrograms(updatedPrograms);
     localStorage.setItem('programs', JSON.stringify(updatedPrograms));
 
-    if (!user || !db) return;
+    const userId = getUserId();
+    if (!userId || !db) return;
 
-    const programsRef = collection(db, 'artifacts', appId, 'users', user.uid, 'programs');
+    const programsRef = collection(db, 'artifacts', appId, 'users', userId, 'programs');
     try {
       await setDoc(doc(programsRef, progToSave.id), progToSave);
     } catch (error) {
       console.error("Ошибка сохранения программы:", error);
+    }
+  };
+
+  const deleteWorkout = async (id) => {
+    const updatedWorkouts = workouts.filter(w => w.id !== id);
+    setWorkouts(updatedWorkouts);
+    localStorage.setItem('workouts', JSON.stringify(updatedWorkouts));
+
+    const userId = getUserId();
+    if (!userId || !db) return;
+
+    try {
+      await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'workouts', id));
+    } catch (error) {
+      console.error("Ошибка удаления тренировки:", error);
+    }
+  };
+
+  const deleteProgram = async (id) => {
+    const updatedPrograms = programs.filter(p => p.id !== id);
+    setPrograms(updatedPrograms);
+    localStorage.setItem('programs', JSON.stringify(updatedPrograms));
+
+    const userId = getUserId();
+    if (!userId || !db) return;
+
+    try {
+      await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'programs', id));
+    } catch (error) {
+      console.error("Ошибка удаления программы:", error);
     }
   };
 
@@ -153,6 +191,8 @@ export function useAppData() {
     programs,
     isDbLoading,
     saveWorkoutSession,
-    saveProgram
+    saveProgram,
+    deleteWorkout,
+    deleteProgram
   };
 }
