@@ -1,6 +1,8 @@
 import React from 'react';
-import { FolderOpen, Plus, Play } from 'lucide-react';
+import { FolderOpen, Plus, Play, Dumbbell } from 'lucide-react';
 import SwipeToDelete from './SwipeToDelete';
+
+const IMG_BASE_URL = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/';
 
 export default function ProgramsView({ programs, onStart, onCreateNew, onDeleteProgram }) {
   return (
@@ -22,8 +24,27 @@ export default function ProgramsView({ programs, onStart, onCreateNew, onDeleteP
           {programs.map(prog => (
             <SwipeToDelete key={prog.id} onDelete={() => onDeleteProgram(prog.id)}>
               <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 relative overflow-hidden">
-                <h3 className="font-bold text-lg text-slate-800 mb-1">{prog.name}</h3>
-                <p className="text-sm text-slate-500 mb-4">{prog.exercises.length} упражнений</p>
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="font-bold text-lg text-slate-800 mb-1">{prog.name}</h3>
+                    <p className="text-sm text-slate-500">{prog.exercises.length} упражнений</p>
+                  </div>
+                  <div className="flex -space-x-3 overflow-hidden">
+                    {prog.exercises.slice(0, 4).map((ex, i) => (
+                      <div key={i} className="w-12 h-12 rounded-xl bg-white shadow-md flex items-center justify-center overflow-hidden ring-2 ring-white">
+                        {ex.images && ex.images.length > 0 ? (
+                          <img
+                            src={`${IMG_BASE_URL}${ex.images[0]}`}
+                            alt={ex.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Dumbbell size={18} className="text-slate-200" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
                 <div className="space-y-2 mb-5">
                   {prog.exercises.slice(0, 3).map((ex, i) => (

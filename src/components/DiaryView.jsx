@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
-import { Dumbbell, CalendarDays } from 'lucide-react';
+import { Dumbbell, CalendarDays, Timer } from 'lucide-react';
 import SwipeToDelete from './SwipeToDelete';
+
+const IMG_BASE_URL = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/';
 
 function getSetWord(count) {
   const remainder = count % 10;
@@ -8,6 +10,13 @@ function getSetWord(count) {
   if (remainder === 1) return 'подход';
   if (remainder >= 2 && remainder <= 4) return 'подхода';
   return 'подходов';
+}
+
+function formatDuration(seconds) {
+  if (!seconds) return null;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 export default function DiaryView({ workouts, onDeleteWorkout }) {
@@ -44,11 +53,30 @@ export default function DiaryView({ workouts, onDeleteWorkout }) {
             {group.exercises.map(ex => (
               <SwipeToDelete key={ex.id} onDelete={() => onDeleteWorkout(ex.id)}>
                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="font-bold text-slate-800 text-lg leading-tight">{ex.exercise}</h3>
-                    <span className="bg-blue-50 text-blue-600 text-xs font-bold px-2 py-1 rounded-lg whitespace-nowrap ml-2">
-                      {ex.sets.length} {getSetWord(ex.sets.length)}
-                    </span>
+                  <div className="flex justify-between items-start mb-3 gap-3">
+                    <div className="flex-1">
+                      <h3 className="font-bold text-slate-800 text-lg leading-tight">{ex.exercise}</h3>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-blue-600 text-xs font-bold px-2 py-1 bg-blue-50 rounded-lg whitespace-nowrap">
+                          {ex.sets.length} {getSetWord(ex.sets.length)}
+                        </span>
+                        {ex.duration > 0 && (
+                          <span className="flex items-center gap-1 text-slate-400 text-xs">
+                            <Timer size={12} />
+                            {formatDuration(ex.duration)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {ex.images && ex.images.length > 0 && (
+                      <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+                        <img
+                          src={`${IMG_BASE_URL}${ex.images[0]}`}
+                          alt={ex.exercise}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
                   </div>
                   <div className="space-y-2">
                     {ex.sets.map((set, idx) => (
