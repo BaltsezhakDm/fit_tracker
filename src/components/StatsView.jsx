@@ -112,7 +112,7 @@ export default function StatsView({ workouts }) {
               {ex.history.length > 1 && (
                 <div className="mt-4 pt-4 border-t border-slate-100">
                   <p className="text-xs text-slate-400 font-medium mb-3">Прогресс максимального веса</p>
-                  <SimpleChart data={ex.history.reverse()} />
+                  <SimpleChart data={[...ex.history].sort((a, b) => new Date(a.date) - new Date(b.date))} />
                 </div>
               )}
             </div>

@@ -22,6 +22,7 @@ export default function AddWorkoutSessionView({ initialTemplate, onSave, onCance
   const handleAddExerciseFromDB = (exerciseObj) => {
     setSessionExercises([...sessionExercises, {
       name: exerciseObj.name,
+      images: exerciseObj.images,
       sets: [{ reps: 10, weight: 0 }]
     }]);
     setIsDBModalOpen(false);

@@ -12,9 +12,9 @@ const INITIAL_PROGRAMS = [
     id: '1',
     name: 'Фуллбоди база',
     exercises: [
-      { name: 'Приседания со штангой', targetSets: 3, targetReps: 10 },
-      { name: 'Жим лежа', targetSets: 3, targetReps: 10 },
-      { name: 'Подтягивания', targetSets: 3, targetReps: 8 },
+      { name: 'Приседания со штангой', targetSets: 3, targetReps: 10, images: ['Barbell_Full_Squat/0.jpg', 'Barbell_Full_Squat/1.jpg'] },
+      { name: 'Жим лежа', targetSets: 3, targetReps: 10, images: ['Barbell_Bench_Press/0.jpg', 'Barbell_Bench_Press/1.jpg'] },
+      { name: 'Подтягивания', targetSets: 3, targetReps: 8, images: ['Pullup/0.jpg', 'Pullup/1.jpg'] },
     ]
   }
 ];
@@ -69,14 +69,16 @@ export function useAppData() {
     fetchInitialData();
   }, [getUserId]);
 
-  const saveWorkoutSession = async (sessionExercises, date) => {
+  const saveWorkoutSession = async (sessionExercises, date, duration) => {
     const userId = getUserId();
     const newWorkouts = sessionExercises.map((ex, index) => ({
       id: Date.now().toString() + '-' + index,
       user_id: userId,
       date: date,
       exercise: ex.name,
-      sets: ex.sets
+      sets: ex.sets,
+      duration: duration,
+      images: ex.images
     }));
 
     const updatedWorkouts = [...newWorkouts, ...workouts];

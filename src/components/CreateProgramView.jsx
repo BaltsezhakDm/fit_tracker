@@ -10,6 +10,7 @@ export default function CreateProgramView({ onSave, onCancel }) {
   const handleAddExerciseFromDB = (exerciseObj) => {
     setExercises([...exercises, {
       name: exerciseObj.name,
+      images: exerciseObj.images,
       targetSets: 3,
       targetReps: 10
     }]);

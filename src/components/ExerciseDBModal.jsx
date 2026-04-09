@@ -106,9 +106,9 @@ export default function ExerciseDBModal({ onClose, onSelect }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col animate-in slide-in-from-bottom duration-300">
-      <div className="bg-white pt-6 pb-3 px-4 shadow-sm flex items-center gap-3">
+      <div className="bg-white pt-12 pb-3 px-4 shadow-sm flex items-center gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-3 text-slate-400" size={20} />
+          <Search className="absolute left-3 top-3.5 text-slate-400" size={20} />
           <input
             type="text"
             autoFocus

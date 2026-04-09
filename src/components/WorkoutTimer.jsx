@@ -1,18 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Play, Pause, Square, Timer } from 'lucide-react';
 
-export default function WorkoutTimer() {
-  const [time, setTime] = useState(0);
-  const [isRunning, setIsRunning] = useState(false);
+export default function WorkoutTimer({ time, setTime, isRunning, setIsRunning }) {
   const [isExpanded, setIsExpanded] = useState(false);
-
-  useEffect(() => {
-    let intervalId;
-    if (isRunning) {
-      intervalId = setInterval(() => setTime((time) => time + 1), 1000);
-    }
-    return () => clearInterval(intervalId);
-  }, [isRunning]);
 
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60);
