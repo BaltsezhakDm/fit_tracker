@@ -8,14 +8,21 @@ export default function ProgramsView({ programs, onStart, onCreateNew, onDeleteP
   return (
     <div className="animate-in fade-in duration-300">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold text-slate-800">Мои программы</h2>
-        <button onClick={onCreateNew} className="text-sm text-blue-600 font-semibold bg-blue-50 px-3 py-1.5 rounded-lg flex items-center gap-1">
+        <h2 className="text-xl font-bold" style={{ color: 'var(--text-color)' }}>Мои программы</h2>
+        <button
+          onClick={onCreateNew}
+          className="text-sm font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1"
+          style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--link-color)' }}
+        >
           <Plus size={16} /> Создать
         </button>
       </div>
 
       {programs.length === 0 ? (
-        <div className="text-center text-slate-400 py-10 bg-white rounded-3xl border border-slate-100 shadow-sm">
+        <div
+          className="text-center py-10 rounded-3xl border border-slate-100 shadow-sm"
+          style={{ backgroundColor: 'var(--secondary-bg-color)', color: 'var(--hint-color)' }}
+        >
           <FolderOpen size={40} className="mx-auto mb-3 opacity-50" />
           <p>У вас еще нет программ.</p>
         </div>
@@ -23,11 +30,14 @@ export default function ProgramsView({ programs, onStart, onCreateNew, onDeleteP
         <div className="space-y-4">
           {programs.map(prog => (
             <SwipeToDelete key={prog.id} onDelete={() => onDeleteProgram(prog.id)}>
-              <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 relative overflow-hidden">
+              <div
+                className="p-5 rounded-3xl shadow-sm border border-slate-100 relative overflow-hidden"
+                style={{ backgroundColor: 'var(--secondary-bg-color)' }}
+              >
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h3 className="font-bold text-lg text-slate-800 mb-1">{prog.name}</h3>
-                    <p className="text-sm text-slate-500">{prog.exercises.length} упражнений</p>
+                    <h3 className="font-bold text-lg mb-1" style={{ color: 'var(--text-color)' }}>{prog.name}</h3>
+                    <p className="text-sm" style={{ color: 'var(--hint-color)' }}>{prog.exercises.length} упражнений</p>
                   </div>
                   <div className="flex -space-x-3 overflow-hidden">
                     {prog.exercises.slice(0, 4).map((ex, i) => (
@@ -48,20 +58,21 @@ export default function ProgramsView({ programs, onStart, onCreateNew, onDeleteP
 
                 <div className="space-y-2 mb-5">
                   {prog.exercises.slice(0, 3).map((ex, i) => (
-                    <div key={i} className="text-sm text-slate-600 flex items-center gap-2">
+                    <div key={i} className="text-sm flex items-center gap-2" style={{ color: 'var(--text-color)' }}>
                       <div className="w-1.5 h-1.5 rounded-full bg-blue-300"></div>
                       <span className="truncate">{ex.name}</span>
-                      <span className="text-slate-400 text-xs ml-auto whitespace-nowrap">{ex.targetSets} × {ex.targetReps}</span>
+                      <span className="text-xs ml-auto whitespace-nowrap" style={{ color: 'var(--hint-color)' }}>{ex.targetSets} × {ex.targetReps}</span>
                     </div>
                   ))}
                   {prog.exercises.length > 3 && (
-                    <p className="text-xs text-slate-400 italic">И еще {prog.exercises.length - 3}...</p>
+                    <p className="text-xs italic" style={{ color: 'var(--hint-color)' }}>И еще {prog.exercises.length - 3}...</p>
                   )}
                 </div>
 
                 <button
                   onClick={() => onStart(prog)}
-                  className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors flex justify-center items-center gap-2"
+                  className="w-full py-3 text-white rounded-xl font-bold transition-colors flex justify-center items-center gap-2"
+                  style={{ backgroundColor: 'var(--button-color)', color: 'var(--button-text-color)' }}
                 >
                   <Play size={18} fill="currentColor" /> Начать тренировку
                 </button>
