@@ -1,28 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Dumbbell, X } from 'lucide-react';
+import { Search, Plus, Dumbbell, X, Edit2, ChevronLeft, Save } from 'lucide-react';
+import { MUSCLE_TRANSLATIONS } from '../constants';
 
 const DATA_URL = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json';
 const IMG_BASE_URL = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/';
-
-const MUSCLE_TRANSLATIONS = {
-  abdominals: 'Пресс',
-  abductors: 'Отводящие',
-  adductors: 'Приводящие',
-  biceps: 'Бицепс',
-  calves: 'Икры',
-  chest: 'Грудь',
-  forearms: 'Предплечья',
-  glutes: 'Ягодицы',
-  hamstrings: 'Бицепс бедра',
-  lats: 'Широчайшие',
-  'lower back': 'Поясница',
-  'middle back': 'Средняя часть спины',
-  neck: 'Шея',
-  quadriceps: 'Квадрицепс',
-  shoulders: 'Плечи',
-  traps: 'Трапеции',
-  triceps: 'Трицепс'
-};
 
 const FALLBACK_EXERCISES = [
   { id: 'f1', name: 'Bench Press', primaryMuscles: ['chest'] },
@@ -35,13 +16,16 @@ const FALLBACK_EXERCISES = [
   { id: 'f8', name: 'Leg Press', primaryMuscles: ['quadriceps'] }
 ];
 
-export default function ExerciseDBModal({ onClose, onSelect }) {
+export default function ExerciseDBModal({ onClose, onSelect, getMergedExercises, saveCustomExercise }) {
   const [search, setSearch] = useState('');
   const [allExercises, setAllExercises] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeCategory, setActiveCategory] = useState('Все');
   const [visibleCount, setVisibleCount] = useState(40);
+
+  const [editingExercise, setEditingExercise] = useState(null);
+  const [editForm, setEditForm] = useState({ name: '', category: '', equipment: '', notes: '' });
 
   useEffect(() => {
     let isMounted = true;
@@ -58,7 +42,8 @@ export default function ExerciseDBModal({ onClose, onSelect }) {
         if (!isMounted) return;
 
         if (data && data.length > 0) {
-          setAllExercises(data);
+          const merged = getMergedExercises ? getMergedExercises(data) : data;
+          setAllExercises(merged);
         } else {
           throw new Error('Empty data');
         }
@@ -104,31 +89,166 @@ export default function ExerciseDBModal({ onClose, onSelect }) {
     setVisibleCount(40);
   }, [search, activeCategory]);
 
+  const handleStartEdit = (e, ex) => {
+    e.stopPropagation();
+    setEditingExercise(ex);
+    setEditForm({
+      name: ex.name || '',
+      category: getCategoryName(ex) || '',
+      equipment: ex.equipment || '',
+      notes: ex.notes || ''
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    const muscleKey = Object.keys(MUSCLE_TRANSLATIONS).find(key => MUSCLE_TRANSLATIONS[key] === editForm.category) || 'other';
+
+    const updatedEx = {
+      ...editingExercise,
+      name: editForm.name,
+      primaryMuscles: [muscleKey],
+      equipment: editForm.equipment,
+      notes: editForm.notes,
+      api_id: editingExercise.is_custom ? editingExercise.api_id : editingExercise.id,
+      id: editingExercise.is_custom ? editingExercise.id : undefined
+    };
+
+    const savedEx = await saveCustomExercise(updatedEx);
+
+    // Refresh list localy
+    setAllExercises(prev => {
+      const exists = prev.find(ex => (ex.id === savedEx.id || (savedEx.api_id && ex.id === savedEx.api_id)));
+      if (exists) {
+        return prev.map(ex => (ex.id === savedEx.id || (savedEx.api_id && ex.id === savedEx.api_id)) ? savedEx : ex);
+      } else {
+        return [savedEx, ...prev];
+      }
+    });
+    setEditingExercise(null);
+  };
+
+  const handleCreateCustom = () => {
+    setEditingExercise({ is_custom: true });
+    setEditForm({ name: '', category: 'Грудь', equipment: '', notes: '' });
+  };
+
+  if (editingExercise) {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex flex-col animate-in slide-in-from-right duration-300"
+        style={{ backgroundColor: 'var(--bg-color)' }}
+      >
+        <div
+          className="pt-12 pb-3 px-4 shadow-sm flex items-center gap-3"
+          style={{ backgroundColor: 'var(--secondary-bg-color)' }}
+        >
+          <button onClick={() => setEditingExercise(null)} className="p-2 rounded-full" style={{ color: 'var(--hint-color)' }}><ChevronLeft size={24} /></button>
+          <h2 className="text-lg font-bold flex-1" style={{ color: 'var(--text-color)' }}>
+            {editingExercise.id || editingExercise.api_id ? 'Редактировать' : 'Новое упражнение'}
+          </h2>
+          <button onClick={handleSaveEdit} className="p-2 rounded-full font-bold flex items-center gap-1" style={{ color: 'var(--link-color)' }}>
+            <Save size={20} /> <span className="hidden sm:inline">Сохранить</span>
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div
+            className="p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4"
+            style={{ backgroundColor: 'var(--secondary-bg-color)' }}
+          >
+            <div>
+              <label className="block text-xs font-bold uppercase mb-1" style={{ color: 'var(--hint-color)' }}>Название</label>
+              <input
+                type="text"
+                value={editForm.name}
+                onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                className="w-full border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                style={{ backgroundColor: 'var(--bg-color)', color: 'var(--text-color)' }}
+                placeholder="Напр: Жим гантелей под углом"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase mb-1" style={{ color: 'var(--hint-color)' }}>Группа мышц</label>
+              <select
+                value={editForm.category}
+                onChange={e => setEditForm({ ...editForm, category: e.target.value })}
+                className="w-full border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
+                style={{ backgroundColor: 'var(--bg-color)', color: 'var(--text-color)' }}
+              >
+                {Object.values(MUSCLE_TRANSLATIONS).sort().map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+                <option value="Другое">Другое</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase mb-1" style={{ color: 'var(--hint-color)' }}>Оборудование</label>
+              <input
+                type="text"
+                value={editForm.equipment}
+                onChange={e => setEditForm({ ...editForm, equipment: e.target.value })}
+                className="w-full border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                style={{ backgroundColor: 'var(--bg-color)', color: 'var(--text-color)' }}
+                placeholder="Напр: Гантели"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase mb-1" style={{ color: 'var(--hint-color)' }}>Заметки / Описание</label>
+              <textarea
+                value={editForm.notes}
+                onChange={e => setEditForm({ ...editForm, notes: e.target.value })}
+                className="w-full border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none h-24"
+                style={{ backgroundColor: 'var(--bg-color)', color: 'var(--text-color)' }}
+                placeholder="Техника выполнения, нюансы..."
+              />
+            </div>
+          </div>
+
+          <p className="text-xs px-2 text-center" style={{ color: 'var(--hint-color)' }}>
+            {editingExercise.api_id ? 'Вы редактируете базовое упражнение. Будет создана ваша локальная версия.' : 'Это упражнение будет доступно только вам.'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col animate-in slide-in-from-bottom duration-300">
-      <div className="bg-white pt-12 pb-3 px-4 shadow-sm flex items-center gap-3">
+    <div
+      className="fixed inset-0 z-50 flex flex-col animate-in slide-in-from-bottom duration-300"
+      style={{ backgroundColor: 'var(--bg-color)' }}
+    >
+      <div
+        className="pt-12 pb-3 px-4 shadow-sm flex items-center gap-3"
+        style={{ backgroundColor: 'var(--secondary-bg-color)' }}
+      >
         <div className="relative flex-1">
           <Search className="absolute left-3 top-3.5 text-slate-400" size={20} />
           <input
             type="text"
             autoFocus
-            placeholder="Поиск (на англ.)..."
+            placeholder="Поиск..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-slate-100 rounded-xl py-3 pl-10 pr-4 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            style={{ backgroundColor: 'var(--bg-color)', color: 'var(--text-color)' }}
           />
         </div>
-        <button onClick={onClose} className="p-2 text-slate-500 hover:bg-slate-100 rounded-full"><X size={24} /></button>
+        <button onClick={handleCreateCustom} className="p-2 rounded-full" style={{ color: 'var(--link-color)' }}><Plus size={24} /></button>
+        <button onClick={onClose} className="p-2 rounded-full" style={{ color: 'var(--hint-color)' }}><X size={24} /></button>
       </div>
 
       {categoriesList.length > 1 && (
-        <div className="bg-white border-b border-slate-200">
+        <div className="border-b" style={{ backgroundColor: 'var(--secondary-bg-color)', borderColor: 'var(--bg-color)' }}>
           <div className="flex overflow-x-auto hide-scrollbar p-3 gap-2">
             {categoriesList.map(cat => (
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
-                className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${activeCategory === cat ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}
+                className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${activeCategory === cat ? 'text-white' : ''}`}
+                style={activeCategory === cat ? { backgroundColor: 'var(--link-color)' } : { backgroundColor: 'var(--bg-color)', color: 'var(--hint-color)' }}
               >
                 {String(cat)}
               </button>
@@ -154,7 +274,8 @@ export default function ExerciseDBModal({ onClose, onSelect }) {
             <button
               key={ex.id}
               onClick={() => onSelect(ex)}
-              className="w-full bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center active:bg-blue-50 transition-colors group text-left"
+              className="w-full p-3 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center active:bg-blue-50 transition-colors group text-left"
+              style={{ backgroundColor: 'var(--secondary-bg-color)' }}
             >
               <div className="flex items-center gap-4 flex-1 overflow-hidden">
                 <div className="w-14 h-14 bg-white rounded-xl border border-slate-100 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
@@ -170,12 +291,27 @@ export default function ExerciseDBModal({ onClose, onSelect }) {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-slate-800 group-active:text-blue-600 truncate leading-tight">{ex.name}</p>
-                  <p className="text-xs text-slate-400 mt-1 truncate">{catName}</p>
+                  <p className="font-bold group-active:text-blue-600 truncate leading-tight flex items-center gap-1" style={{ color: 'var(--text-color)' }}>
+                    {ex.name}
+                    {ex.is_custom && <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>}
+                  </p>
+                  <p className="text-xs mt-1 truncate" style={{ color: 'var(--hint-color)' }}>{catName}</p>
                 </div>
               </div>
-              <div className="w-8 h-8 rounded-full bg-slate-50 group-active:bg-blue-100 flex items-center justify-center shrink-0 ml-2">
-                <Plus className="text-slate-400 group-active:text-blue-600" size={18} />
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={(e) => handleStartEdit(e, ex)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center hover:text-blue-600"
+                  style={{ backgroundColor: 'var(--bg-color)', color: 'var(--hint-color)' }}
+                >
+                  <Edit2 size={16} />
+                </button>
+                <div
+                  className="w-8 h-8 rounded-full group-active:bg-blue-100 flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: 'var(--bg-color)' }}
+                >
+                  <Plus size={18} style={{ color: 'var(--hint-color)' }} />
+                </div>
               </div>
             </button>
           );

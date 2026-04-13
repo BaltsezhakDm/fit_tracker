@@ -10,11 +10,28 @@ import WorkoutTimer from './components/WorkoutTimer';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('diary'); // diary, programs, add, stats, createProgram
-  const { workouts, programs, isDbLoading, saveWorkoutSession, saveProgram, deleteWorkout, deleteProgram } = useAppData();
+  const {
+    workouts,
+    programs,
+    customExercises,
+    isDbLoading,
+    saveWorkoutSession,
+    saveProgram,
+    saveCustomExercise,
+    deleteWorkout,
+    deleteProgram,
+    getMergedExercises,
+    getProgressionAlerts,
+    getGapAnalysis
+  } = useAppData();
 
   const [activeTemplate, setActiveTemplate] = useState(null);
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
+
+  const startTimer = () => {
+    setIsTimerRunning(true);
+  };
 
   useEffect(() => {
     let intervalId;
@@ -54,20 +71,26 @@ export default function App() {
 
   if (isDbLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--bg-color)' }}>
         <div className="flex flex-col items-center gap-3">
-          <Activity className="text-blue-500 animate-pulse" size={48} />
-          <p className="text-slate-500 font-medium animate-pulse">Синхронизация данных...</p>
+          <Activity className="animate-pulse" size={48} style={{ color: 'var(--link-color)' }} />
+          <p className="font-medium animate-pulse" style={{ color: 'var(--hint-color)' }}>Синхронизация данных...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-20 selection:bg-blue-200 relative pl-safe pr-safe pt-safe">
-      <header className="bg-white/80 backdrop-blur-md px-4 pt-4 pb-4 shadow-sm sticky top-0 z-10 flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-          <Activity className="text-blue-500" />
+    <div
+      className="min-h-screen font-sans pb-20 relative pl-safe pr-safe pt-safe"
+      style={{ backgroundColor: 'var(--bg-color)', color: 'var(--text-color)' }}
+    >
+      <header
+        className="backdrop-blur-md px-4 pt-4 pb-4 shadow-sm sticky top-0 z-10 flex justify-between items-center"
+        style={{ backgroundColor: 'var(--secondary-bg-color)' }}
+      >
+        <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: 'var(--text-color)' }}>
+          <Activity style={{ color: 'var(--link-color)' }} />
           FitTracker
         </h1>
       </header>
@@ -88,6 +111,13 @@ export default function App() {
           <AddWorkoutSessionView
             initialTemplate={activeTemplate}
             onSave={handleSaveWorkoutSession}
+            workouts={workouts}
+            customExercises={customExercises}
+            saveCustomExercise={saveCustomExercise}
+            getMergedExercises={getMergedExercises}
+            onStartTimer={startTimer}
+            getProgressionAlerts={getProgressionAlerts}
+            getGapAnalysis={getGapAnalysis}
             onCancel={() => {
               setActiveTab('diary');
               setActiveTemplate(null);
@@ -100,6 +130,8 @@ export default function App() {
         {activeTab === 'createProgram' && (
           <CreateProgramView
             onSave={handleSaveProgram}
+            getMergedExercises={getMergedExercises}
+            saveCustomExercise={saveCustomExercise}
             onCancel={() => setActiveTab('programs')}
           />
         )}
@@ -114,7 +146,10 @@ export default function App() {
         setIsRunning={setIsTimerRunning}
       />
 
-      <nav className="fixed bottom-0 w-full bg-white border-t border-slate-200 flex justify-around items-stretch h-20 px-2 z-20 pb-safe">
+      <nav
+        className="fixed bottom-0 w-full border-t border-slate-200 flex justify-around items-stretch h-20 px-2 z-20 pb-safe"
+        style={{ backgroundColor: 'var(--secondary-bg-color)' }}
+      >
         <NavButton icon={<CalendarDays size={22} />} label="Дневник" isActive={activeTab === 'diary'} onClick={() => setActiveTab('diary')} />
         <NavButton icon={<FolderOpen size={22} />} label="Программы" isActive={activeTab === 'programs'} onClick={() => setActiveTab('programs')} />
         <NavButton

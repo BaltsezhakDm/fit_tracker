@@ -2,6 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg-color: var(--tg-theme-bg-color, #f8fafc);
+  --secondary-bg-color: var(--tg-theme-secondary-bg-color, #ffffff);
+  --text-color: var(--tg-theme-text-color, #0f172a);
+  --hint-color: var(--tg-theme-hint-color, #64748b);
+  --link-color: var(--tg-theme-link-color, #3b82f6);
+  --button-color: var(--tg-theme-button-color, #3b82f6);
+  --button-text-color: var(--tg-theme-button-text-color, #ffffff);
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
 @layer utilities {
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
