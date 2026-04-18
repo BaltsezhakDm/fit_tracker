@@ -30,8 +30,22 @@ export interface TrainingPlan {
   day_of_week: number | null; // 0-6
 }
 
+export interface TrainingPlanCreate {
+  name: string;
+  program_id: number;
+  day_of_week?: number | null;
+}
+
+export interface TrainingPlanRead extends TrainingPlan {}
+
 export interface PlanExercise {
   plan_id: number;
+  exercise_id: number;
+  target_sets: number;
+  target_reps: number;
+}
+
+export interface PlanExerciseCreate {
   exercise_id: number;
   target_sets: number;
   target_reps: number;

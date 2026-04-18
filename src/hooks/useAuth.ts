@@ -13,15 +13,15 @@ export function useAuth() {
         const initData = WebApp.initData;
         if (initData) {
           const response = await api.post<AuthResponse>('/auth/telegram', { initData });
-          localStorage.setItem('access_token', response.data.access_token);
+          const token = response.data.access_token;
+          localStorage.setItem('access_token', token);
 
-          // Get user info (Assuming /users/me or similar)
-          // For now using the telegram_id from initDataUnsafe
-          const tgId = WebApp.initDataUnsafe.user?.id;
-          if (tgId) {
-            const userRes = await api.get<User>(`/users/telegram/${tgId}`);
-            setUser(userRes.data);
-          }
+          // Set Authorization header immediately for subsequent requests
+          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+          // Get user info
+          const userRes = await api.get<User>('/users/me');
+          setUser(userRes.data);
         }
       } catch (error) {
         console.error('Auth error', error);

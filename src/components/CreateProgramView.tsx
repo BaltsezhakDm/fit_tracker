@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Search, Plus, Trash2, X, MoveUp, MoveDown, Dumbbell, Save } from 'lucide-react';
+import { Search, Plus, Trash2, X, MoveUp, MoveDown, Dumbbell, Save, Loader2 } from 'lucide-react';
 import ExerciseDBModal from './ExerciseDBModal';
-import { useCreateProgram } from '../hooks/usePrograms';
+import { useCreateProgram, useCreatePlan, useAddExerciseToPlan } from '../hooks/usePrograms';
 import { useAuth } from '../hooks/useAuth';
+import WebApp from '@twa-dev/sdk';
 
 interface CreateProgramViewProps {
   onSave: () => void;
@@ -17,6 +18,9 @@ export default function CreateProgramView({ onSave, onCancel }: CreateProgramVie
   const [isDBModalOpen, setIsDBModalOpen] = useState(false);
 
   const createProgramMutation = useCreateProgram();
+  const createPlanMutation = useCreatePlan();
+  const addExerciseToPlanMutation = useAddExerciseToPlan();
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleAddExercise = (exercise: any) => {
     setSelectedExercises([...selectedExercises, { ...exercise, targetSets: 3, targetReps: 10 }]);
@@ -24,15 +28,42 @@ export default function CreateProgramView({ onSave, onCancel }: CreateProgramVie
   };
 
   const handleSave = async () => {
-    if (!name || selectedExercises.length === 0) return;
+    if (!name || selectedExercises.length === 0 || isSaving) return;
 
-    await createProgramMutation.mutateAsync({
-      name,
-      description,
-      user_id: user?.id || 0,
-    });
+    setIsSaving(true);
+    try {
+      // 1. Create the program
+      const program = await createProgramMutation.mutateAsync({
+        name,
+        description,
+      });
 
-    onSave();
+      // 2. Create a default plan for the program
+      const plan = await createPlanMutation.mutateAsync({
+        name: 'Основная тренировка',
+        program_id: program.id,
+      });
+
+      // 3. Add exercises to the plan
+      for (const ex of selectedExercises) {
+        await addExerciseToPlanMutation.mutateAsync({
+          planId: plan.id,
+          exercise: {
+            exercise_id: ex.id,
+            target_sets: ex.targetSets,
+            target_reps: ex.targetReps,
+          },
+        });
+      }
+
+      WebApp.HapticFeedback.notificationOccurred('success');
+      onSave();
+    } catch (error) {
+      console.error('Failed to save program', error);
+      WebApp.HapticFeedback.notificationOccurred('error');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -102,10 +133,15 @@ export default function CreateProgramView({ onSave, onCancel }: CreateProgramVie
         </button>
         <button
           onClick={handleSave}
-          disabled={!name || selectedExercises.length === 0}
+          disabled={!name || selectedExercises.length === 0 || isSaving}
           className="flex-2 bg-tg-link text-white py-4 px-8 rounded-2xl font-bold shadow-xl shadow-blue-100 disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
         >
-          <Save size={20} /> Сохранить программу
+          {isSaving ? (
+            <Loader2 size={20} className="animate-spin" />
+          ) : (
+            <Save size={20} />
+          )}
+          {isSaving ? 'Сохранение...' : 'Сохранить программу'}
         </button>
       </div>
 

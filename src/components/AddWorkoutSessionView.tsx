@@ -32,16 +32,19 @@ export default function AddWorkoutSessionView({
 
   // Initialize session
   useEffect(() => {
-    if (user && !session) {
+    if (user && !session && !startWorkoutMutation.isPending && !startWorkoutMutation.isError) {
       startWorkoutMutation.mutate({
         planId: initialTemplate?.id
       }, {
         onSuccess: (newSession) => {
           setSession(newSession);
+        },
+        onError: (err) => {
+          console.error("Failed to start workout session", err);
         }
       });
     }
-  }, [user, initialTemplate]);
+  }, [user, initialTemplate, session]);
 
   const handleSave = useCallback(async () => {
     if (!session) return;
@@ -84,22 +87,24 @@ export default function AddWorkoutSessionView({
   }, [session, sessionExercises, onSave]);
 
   useEffect(() => {
-    if (sessionExercises.length > 0) {
-      WebApp.MainButton.setText("ЗАВЕРШИТЬ ТРЕНИРОВКУ");
-      WebApp.MainButton.show();
+    const mainButton = WebApp.MainButton;
+    if (sessionExercises.length > 0 && mainButton) {
+      mainButton.setText("ЗАВЕРШИТЬ ТРЕНИРОВКУ");
+      mainButton.show();
       const handleClick = () => handleSave();
-      WebApp.MainButton.onClick(handleClick);
+      mainButton.onClick(handleClick);
       return () => {
-        WebApp.MainButton.hide();
-        WebApp.MainButton.offClick(handleClick);
+        mainButton.hide();
+        mainButton.offClick(handleClick);
       };
     }
   }, [sessionExercises.length, handleSave]);
 
   const handleAddExerciseFromDB = (exerciseObj: any) => {
+    if (!exerciseObj?.id) return;
     setSessionExercises([...sessionExercises, {
       exercise_id: exerciseObj.id,
-      name: exerciseObj.name,
+      name: exerciseObj.name || 'Упражнение',
       media_url: exerciseObj.media_url,
       primary_muscle_group: exerciseObj.primary_muscle_group,
       sets: [{
@@ -170,6 +175,7 @@ export default function AddWorkoutSessionView({
           {initialTemplate ? `Программа: ${initialTemplate.name}` : 'Новая тренировка'}
         </h2>
         {startWorkoutMutation.isPending && <span className="text-xs text-tg-hint animate-pulse">Запуск сессии...</span>}
+        {startWorkoutMutation.isError && <span className="text-xs text-red-500">Ошибка запуска</span>}
       </div>
 
       <div className="space-y-6">
