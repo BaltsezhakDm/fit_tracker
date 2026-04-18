@@ -12,7 +12,7 @@ export function useAuth() {
       try {
         const initData = WebApp.initData;
         if (initData) {
-          const response = await api.post<AuthResponse>('/auth/login', { initData });
+          const response = await api.post<AuthResponse>('/auth/telegram', { initData });
           localStorage.setItem('access_token', response.data.access_token);
 
           // Get user info (Assuming /users/me or similar)
