@@ -34,7 +34,6 @@ export default function AddWorkoutSessionView({
   useEffect(() => {
     if (user && !session) {
       startWorkoutMutation.mutate({
-        userId: user.id,
         planId: initialTemplate?.id
       }, {
         onSuccess: (newSession) => {
@@ -63,7 +62,10 @@ export default function AddWorkoutSessionView({
                 reps: set.reps,
                 weight: set.weight,
                 time_spent_seconds: null,
-                rest_time_seconds: null
+                rest_time_seconds: null,
+                is_warmup: false,
+                rpe: null,
+                rir: null
               }
             });
           }
