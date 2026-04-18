@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'https://trackerfit.mooo.com',
+  baseURL: 'https://test.sttgeo.ru',
 });
 
 api.interceptors.request.use((config) => {
