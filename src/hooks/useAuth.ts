@@ -7,6 +7,8 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  console.log('initDataUnsafe:', WebApp.initDataUnsafe);
+
   useEffect(() => {
     const login = async () => {
       try {
