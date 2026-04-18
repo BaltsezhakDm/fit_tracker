@@ -15,6 +15,7 @@ export function useAuth() {
           const response = await api.post<AuthResponse>('/auth/telegram', { initData });
           const token = response.data.access_token;
           localStorage.setItem('access_token', token);
+          console.log('Приложение запущено', response);
 
           // Set Authorization header immediately for subsequent requests
           api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -22,6 +23,8 @@ export function useAuth() {
           // Get user info
           const userRes = await api.get<User>('/users/me');
           setUser(userRes.data);
+        }else {
+          console.warn('Приложение запущено вне Telegram или initData отсутствует');
         }
       } catch (error) {
         console.error('Auth error', error);
