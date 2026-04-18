@@ -6,7 +6,9 @@ import './index.css'
 
 import WebApp from '@twa-dev/sdk';
 
-WebApp.ready()
+if (typeof WebApp.ready === 'function') {
+  WebApp.ready();
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {

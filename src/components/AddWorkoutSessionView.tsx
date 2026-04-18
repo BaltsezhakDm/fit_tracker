@@ -2,9 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Dumbbell, Trash2, X, Search, Copy, CheckCircle2 } from 'lucide-react';
 import WebApp from '@twa-dev/sdk';
 import ExerciseDBModal from './ExerciseDBModal';
-import { useWorkouts, useStartWorkout, useAddExerciseToSession, useAddSet, useCompleteWorkout } from '../hooks/useWorkouts';
+import { useStartWorkout, useAddExerciseToSession, useAddSet, useCompleteWorkout } from '../hooks/useWorkouts';
 import { useAuth } from '../hooks/useAuth';
 import { WorkoutSession } from '../types/api';
+import { logger } from '../lib/logger';
 
 interface AddWorkoutSessionViewProps {
   initialTemplate?: any;
@@ -46,45 +47,70 @@ export default function AddWorkoutSessionView({
     }
   }, [user, initialTemplate, session]);
 
+  const [saveProgress, setSaveProgress] = useState<{current: number, total: number} | null>(null);
+
   const handleSave = useCallback(async () => {
-    if (!session) return;
+    if (!session) {
+      logger.error('Cannot save: no active session');
+      return;
+    }
+
+    const completedExercises = sessionExercises.filter(ex => ex.sets.some((s: any) => s.isDone));
+    if (completedExercises.length === 0) {
+      logger.warn('No completed exercises to save');
+      WebApp.HapticFeedback?.notificationOccurred('warning');
+      return;
+    }
+
+    logger.action('Saving workout session...', { sessionId: session.id, exercises: completedExercises });
+    setSaveProgress({ current: 0, total: completedExercises.length });
 
     try {
       // 1. Save all exercises and sets
-      for (const ex of sessionExercises) {
+      for (let i = 0; i < completedExercises.length; i++) {
+        const ex = completedExercises[i];
+        logger.info(`Saving exercise ${i + 1}/${completedExercises.length}: ${ex.name}`);
+
         const workoutEx = await addExerciseMutation.mutateAsync({
           sessionId: session.id,
           exerciseId: ex.exercise_id
         });
 
-        for (const set of ex.sets) {
-          if (set.isDone) {
-            await addSetMutation.mutateAsync({
-              workoutExerciseId: workoutEx.id,
-              set: {
-                reps: set.reps,
-                weight: set.weight,
-                time_spent_seconds: null,
-                rest_time_seconds: null,
-                is_warmup: false,
-                rpe: null,
-                rir: null
-              }
-            });
-          }
+        const doneSets = ex.sets.filter((s: any) => s.isDone);
+        for (let j = 0; j < doneSets.length; j++) {
+          const set = doneSets[j];
+          logger.info(`  Saving set ${j + 1}/${doneSets.length}: ${set.weight}kg x ${set.reps}`);
+          await addSetMutation.mutateAsync({
+            workoutExerciseId: workoutEx.id,
+            set: {
+              reps: set.reps,
+              weight: set.weight,
+              time_spent_seconds: null,
+              rest_time_seconds: null,
+              is_warmup: false,
+              rpe: null,
+              rir: null
+            }
+          });
         }
+        setSaveProgress({ current: i + 1, total: completedExercises.length });
       }
 
       // 2. Complete workout
+      logger.info('Completing workout session...');
       await completeWorkoutMutation.mutateAsync(session.id);
 
-      WebApp.HapticFeedback.notificationOccurred('success');
+      logger.action('Workout saved successfully');
+      WebApp.HapticFeedback?.notificationOccurred('success');
       onSave();
     } catch (error) {
-      console.error("Failed to save workout", error);
-      WebApp.HapticFeedback.notificationOccurred('error');
+      logger.error("Failed to save workout", error);
+      WebApp.HapticFeedback?.notificationOccurred('error');
+      alert('Ошибка при сохранении тренировки. Пожалуйста, попробуйте еще раз.');
+    } finally {
+      setSaveProgress(null);
     }
-  }, [session, sessionExercises, onSave]);
+  }, [session, sessionExercises, onSave, addExerciseMutation, addSetMutation, completeWorkoutMutation]);
 
   useEffect(() => {
     const mainButton = WebApp.MainButton;
@@ -92,16 +118,17 @@ export default function AddWorkoutSessionView({
       mainButton.setText("ЗАВЕРШИТЬ ТРЕНИРОВКУ");
       mainButton.show();
       const handleClick = () => handleSave();
-      mainButton.onClick(handleClick);
+      mainButton.onClick?.(handleClick);
       return () => {
-        mainButton.hide();
-        mainButton.offClick(handleClick);
+        mainButton.hide?.();
+        mainButton.offClick?.(handleClick);
       };
     }
   }, [sessionExercises.length, handleSave]);
 
   const handleAddExerciseFromDB = (exerciseObj: any) => {
     if (!exerciseObj?.id) return;
+    logger.action('Adding exercise to session', exerciseObj);
     setSessionExercises([...sessionExercises, {
       exercise_id: exerciseObj.id,
       name: exerciseObj.name || 'Упражнение',
@@ -117,6 +144,8 @@ export default function AddWorkoutSessionView({
   };
 
   const addSetToExercise = (exIndex: number) => {
+    const ex = sessionExercises[exIndex];
+    logger.action(`Adding set to exercise: ${ex.name}`);
     const updated = [...sessionExercises];
     const lastSet = updated[exIndex].sets[updated[exIndex].sets.length - 1];
     updated[exIndex].sets.push({
@@ -128,23 +157,29 @@ export default function AddWorkoutSessionView({
   };
 
   const cloneLastSet = (exIndex: number) => {
+    const ex = sessionExercises[exIndex];
+    logger.action(`Cloning last set for exercise: ${ex.name}`);
     const updated = [...sessionExercises];
     const lastSet = updated[exIndex].sets[updated[exIndex].sets.length - 1];
     if (lastSet) {
       updated[exIndex].sets.push({ ...lastSet, isDone: false });
       setSessionExercises(updated);
-      WebApp.HapticFeedback.impactOccurred('light');
+      WebApp.HapticFeedback?.impactOccurred('light');
     }
   };
 
   const toggleSetDone = (exIndex: number, setIndex: number) => {
+    const ex = sessionExercises[exIndex];
+    const set = ex.sets[setIndex];
+    const newState = !set.isDone;
+    logger.action(`Toggling set completion: ${ex.name} (Set ${setIndex + 1}) -> ${newState}`);
+
     const updated = [...sessionExercises];
-    const newState = !updated[exIndex].sets[setIndex].isDone;
     updated[exIndex].sets[setIndex].isDone = newState;
     setSessionExercises(updated);
 
     if (newState) {
-      WebApp.HapticFeedback.impactOccurred('medium');
+      WebApp.HapticFeedback?.impactOccurred('medium');
       if (onStartTimer) onStartTimer();
     }
   };
@@ -156,12 +191,16 @@ export default function AddWorkoutSessionView({
   };
 
   const removeSet = (exIndex: number, setIndex: number) => {
+    const ex = sessionExercises[exIndex];
+    logger.action(`Removing set ${setIndex + 1} from ${ex.name}`);
     const updated = [...sessionExercises];
     updated[exIndex].sets = updated[exIndex].sets.filter((_: any, i: number) => i !== setIndex);
     setSessionExercises(updated);
   };
 
   const removeExercise = (exIndex: number) => {
+    const ex = sessionExercises[exIndex];
+    logger.action(`Removing exercise from session: ${ex.name}`);
     setSessionExercises(sessionExercises.filter((_, i) => i !== exIndex));
   };
 
@@ -291,6 +330,28 @@ export default function AddWorkoutSessionView({
           </button>
         </div>
       </div>
+
+      {saveProgress && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-tg-secondaryBg p-8 rounded-[2rem] shadow-2xl flex flex-col items-center gap-4 max-w-[80%] text-center">
+            <div className="relative w-20 h-20">
+               <svg className="w-full h-full transform -rotate-90">
+                 <circle cx="40" cy="40" r="36" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-tg-bg" />
+                 <circle cx="40" cy="40" r="36" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-tg-link"
+                   strokeDasharray={226.2} strokeDashoffset={226.2 * (1 - saveProgress.current / saveProgress.total)}
+                   strokeLinecap="round" />
+               </svg>
+               <div className="absolute inset-0 flex items-center justify-center font-bold text-lg text-tg-text">
+                 {Math.round((saveProgress.current / saveProgress.total) * 100)}%
+               </div>
+            </div>
+            <div>
+              <h3 className="font-bold text-tg-text mb-1 text-xl">Сохранение...</h3>
+              <p className="text-sm text-tg-hint">Упражнение {saveProgress.current} из {saveProgress.total}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isDBModalOpen && (
         <ExerciseDBModal

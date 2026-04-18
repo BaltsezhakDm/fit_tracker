@@ -1,7 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BarChart3, TrendingUp, Calendar, Zap, Award } from 'lucide-react';
+import { logger } from '../lib/logger';
 
 export default function StatsView() {
+  useEffect(() => {
+    logger.action('Viewing Statistics/Analytics');
+  }, []);
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-10">
       <div className="flex items-center justify-between px-2">
