@@ -1,13 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import api from '../api/client';
-import { Exercise } from '../types/api';
+import { Exercise, PageExerciseRead } from '../types/api';
 
 export function useExercises() {
   return useQuery<Exercise[]>({
     queryKey: ['exercises'],
     queryFn: async () => {
-      const response = await api.get('/exercises/');
-      return response.data;
+      const response = await api.get<PageExerciseRead>('/exercises/');
+      return response.data.items;
     },
     staleTime: Infinity, // Exercises change rarely
   });

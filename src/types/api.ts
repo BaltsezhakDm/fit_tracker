@@ -13,6 +13,7 @@ export interface Exercise {
   description: string | null;
   media_url: string | null;
   comment: string | null;
+  biomechanics_tags: string[];
 }
 
 export interface TrainingProgram {
@@ -39,7 +40,7 @@ export interface PlanExercise {
 export type WorkoutStatus = 'active' | 'completed';
 
 export interface WorkoutSession {
-  id: number;
+  id: string; // UUID
   user_id: number;
   plan_id: number | null;
   start_time: string;
@@ -48,19 +49,22 @@ export interface WorkoutSession {
 }
 
 export interface WorkoutExercise {
-  id: number;
-  session_id: number;
+  id: string; // UUID
+  session_id: string; // UUID
   exercise_id: number;
   order: number;
 }
 
 export interface WorkoutSet {
-  id: number;
-  workout_exercise_id: number;
+  id: string; // UUID
+  workout_exercise_id: string; // UUID
   reps: number;
   weight: number;
   time_spent_seconds: number | null;
   rest_time_seconds: number | null;
+  is_warmup: boolean;
+  rpe: number | null;
+  rir: number | null;
 }
 
 export interface ProgressionData {
@@ -71,5 +75,17 @@ export interface ProgressionData {
 
 export interface AuthResponse {
   access_token: string;
+  refresh_token: string;
   token_type: string;
 }
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  size: number;
+  pages: number;
+}
+
+export type PageExerciseRead = PaginatedResponse<Exercise>;
+export type PageWorkoutSessionRead = PaginatedResponse<WorkoutSession>;

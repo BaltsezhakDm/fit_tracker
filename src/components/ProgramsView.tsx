@@ -10,8 +10,7 @@ interface ProgramsViewProps {
 }
 
 export default function ProgramsView({ onStart, onCreateNew }: ProgramsViewProps) {
-  const { user } = useAuth();
-  const { data: programs, isLoading } = usePrograms(user?.id || 0);
+  const { data: programs, isLoading } = usePrograms();
 
   if (isLoading) {
     return <div className="text-center py-20 text-tg-hint">Загрузка программ...</div>;

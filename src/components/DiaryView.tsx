@@ -5,8 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import SwipeToDelete from './SwipeToDelete';
 
 export default function DiaryView() {
-  const { user } = useAuth();
-  const { data: workouts, isLoading } = useWorkouts(user?.id || 0);
+  const { data: workouts, isLoading } = useWorkouts();
 
   if (isLoading) {
     return <div className="text-center py-20 text-tg-hint">Загрузка тренировок...</div>;
