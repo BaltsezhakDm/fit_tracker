@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'https://test.sttgeo.ru',
+  baseURL: 'https://test.sttgeo.ru:8443',
 });
 
 api.interceptors.request.use((config) => {
