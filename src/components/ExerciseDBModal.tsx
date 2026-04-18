@@ -14,17 +14,17 @@ export default function ExerciseDBModal({ onClose, onSelect }: ExerciseDBModalPr
   const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
 
   const filteredExercises = useMemo(() => {
-    if (!exercises) return [];
+    if (!Array.isArray(exercises)) return [];
     return exercises.filter(ex => {
-      const matchesSearch = ex.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = (ex.name || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchesMuscle = !selectedMuscle || ex.primary_muscle_group === selectedMuscle;
       return matchesSearch && matchesMuscle;
     });
   }, [exercises, searchTerm, selectedMuscle]);
 
   const muscleGroups = useMemo(() => {
-    if (!exercises) return [];
-    const muscles = new Set(exercises.map(ex => ex.primary_muscle_group));
+    if (!Array.isArray(exercises)) return [];
+    const muscles = new Set(exercises.map(ex => ex.primary_muscle_group).filter(Boolean));
     return Array.from(muscles).sort();
   }, [exercises]);
 

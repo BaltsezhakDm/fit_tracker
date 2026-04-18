@@ -7,7 +7,7 @@ export function useWorkouts() {
     queryKey: ['workouts'],
     queryFn: async () => {
       const response = await api.get<PageWorkoutSessionRead>('/workouts/history');
-      return response.data.items;
+      return response.data?.items || [];
     },
   });
 }

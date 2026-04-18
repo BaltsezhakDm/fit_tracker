@@ -7,7 +7,7 @@ export function useExercises() {
     queryKey: ['exercises'],
     queryFn: async () => {
       const response = await api.get<PageExerciseRead>('/exercises/');
-      return response.data.items;
+      return response.data?.items || [];
     },
     staleTime: Infinity, // Exercises change rarely
   });
