@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dumbbell, Trash2, X, Search, Copy, CheckCircle2 } from 'lucide-react';
-import WebApp from '@twa-dev/sdk';
+import WebApp from '../lib/telegram';
 import ExerciseDBModal from './ExerciseDBModal';
 import { useStartWorkout, useAddExerciseToSession, useAddSet, useCompleteWorkout } from '../hooks/useWorkouts';
 import { useAuth } from '../hooks/useAuth';
@@ -58,7 +58,7 @@ export default function AddWorkoutSessionView({
     const completedExercises = sessionExercises.filter(ex => ex.sets.some((s: any) => s.isDone));
     if (completedExercises.length === 0) {
       logger.warn('No completed exercises to save');
-      WebApp.HapticFeedback?.notificationOccurred('warning');
+      WebApp?.HapticFeedback?.notificationOccurred('warning');
       return;
     }
 
@@ -101,11 +101,11 @@ export default function AddWorkoutSessionView({
       await completeWorkoutMutation.mutateAsync(session.id);
 
       logger.action('Workout saved successfully');
-      WebApp.HapticFeedback?.notificationOccurred('success');
+      WebApp?.HapticFeedback?.notificationOccurred('success');
       onSave();
     } catch (error) {
       logger.error("Failed to save workout", error);
-      WebApp.HapticFeedback?.notificationOccurred('error');
+      WebApp?.HapticFeedback?.notificationOccurred('error');
       alert('Ошибка при сохранении тренировки. Пожалуйста, попробуйте еще раз.');
     } finally {
       setSaveProgress(null);
@@ -113,15 +113,15 @@ export default function AddWorkoutSessionView({
   }, [session, sessionExercises, onSave, addExerciseMutation, addSetMutation, completeWorkoutMutation]);
 
   useEffect(() => {
-    const mainButton = WebApp.MainButton;
+    const mainButton = WebApp?.MainButton;
     if (sessionExercises.length > 0 && mainButton) {
       mainButton.setText("ЗАВЕРШИТЬ ТРЕНИРОВКУ");
       mainButton.show();
       const handleClick = () => handleSave();
       mainButton.onClick?.(handleClick);
       return () => {
-        mainButton.hide?.();
-        mainButton.offClick?.(handleClick);
+        mainButton?.hide?.();
+        mainButton?.offClick?.(handleClick);
       };
     }
   }, [sessionExercises.length, handleSave]);
@@ -164,7 +164,7 @@ export default function AddWorkoutSessionView({
     if (lastSet) {
       updated[exIndex].sets.push({ ...lastSet, isDone: false });
       setSessionExercises(updated);
-      WebApp.HapticFeedback?.impactOccurred('light');
+      WebApp?.HapticFeedback?.impactOccurred('light');
     }
   };
 
@@ -179,7 +179,7 @@ export default function AddWorkoutSessionView({
     setSessionExercises(updated);
 
     if (newState) {
-      WebApp.HapticFeedback?.impactOccurred('medium');
+      WebApp?.HapticFeedback?.impactOccurred('medium');
       if (onStartTimer) onStartTimer();
     }
   };
