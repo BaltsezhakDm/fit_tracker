@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Dumbbell, Trash2, X, Search, Copy, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Dumbbell, Trash2, X, Search, Copy, CheckCircle2, Loader2 } from 'lucide-react';
 import WebApp from '../lib/telegram';
 import ExerciseDBModal from './ExerciseDBModal';
 import { useStartWorkout, useAddExerciseToSession, useAddSet, useCompleteWorkout } from '../hooks/useWorkouts';
+import { useGetProgramPlans, useGetPlanExercises } from '../hooks/usePrograms';
+import { useExercises } from '../hooks/useExercises';
 import { useAuth } from '../hooks/useAuth';
 import { WorkoutSession } from '../types/api';
 import { logger } from '../lib/logger';
@@ -31,11 +33,20 @@ export default function AddWorkoutSessionView({
   const addSetMutation = useAddSet();
   const completeWorkoutMutation = useCompleteWorkout();
 
+  const { data: exercisesList } = useExercises();
+  const { data: plans, isLoading: isLoadingPlans } = useGetProgramPlans(initialTemplate?.id || null);
+  const activePlanId = plans && plans.length > 0 ? plans[0].id : null;
+  const { data: planExercises, isLoading: isLoadingPlanExercises } = useGetPlanExercises(activePlanId);
+
+  const initialLoadRef = useRef(false);
+
   // Initialize session
   useEffect(() => {
     if (user && !session && !startWorkoutMutation.isPending && !startWorkoutMutation.isError) {
+      // If we have a program, we should ideally wait for its plans to get the planId
+      // But starting a workout with plan_id: null is also valid for base workout
       startWorkoutMutation.mutate({
-        planId: initialTemplate?.id
+        planId: activePlanId || undefined
       }, {
         onSuccess: (newSession) => {
           setSession(newSession);
@@ -45,7 +56,30 @@ export default function AddWorkoutSessionView({
         }
       });
     }
-  }, [user, initialTemplate, session]);
+  }, [user, initialTemplate, session, activePlanId]);
+
+  // Load exercises from plan when they become available
+  useEffect(() => {
+    if (planExercises && planExercises.length > 0 && exercisesList && !initialLoadRef.current) {
+      logger.info('Loading exercises from program plan', planExercises);
+      const exercisesToLoad = planExercises.map(pe => {
+        const baseEx = exercisesList.find(e => e.id === pe.exercise_id);
+        return {
+          exercise_id: pe.exercise_id,
+          name: baseEx?.name || 'Упражнение',
+          media_url: baseEx?.media_url,
+          primary_muscle_group: baseEx?.primary_muscle_group,
+          sets: Array.from({ length: pe.target_sets }).map(() => ({
+            reps: pe.target_reps,
+            weight: 0,
+            isDone: false
+          }))
+        };
+      });
+      setSessionExercises(exercisesToLoad);
+      initialLoadRef.current = true;
+    }
+  }, [planExercises, exercisesList]);
 
   const [saveProgress, setSaveProgress] = useState<{current: number, total: number} | null>(null);
 
@@ -207,28 +241,28 @@ export default function AddWorkoutSessionView({
 
   return (
     <div
-      className="rounded-3xl p-5 shadow-sm border border-slate-100 animate-in slide-in-from-bottom-8 duration-300 relative bg-tg-secondaryBg"
+      className="rounded-2xl p-4 shadow-sm border border-slate-100 animate-in slide-in-from-bottom-8 duration-300 relative bg-tg-secondaryBg"
     >
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold text-tg-text">
-          {initialTemplate ? `Программа: ${initialTemplate.name}` : 'Новая тренировка'}
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-bold text-tg-text">
+          {initialTemplate ? `${initialTemplate.name}` : 'Новая тренировка'}
         </h2>
-        {startWorkoutMutation.isPending && <span className="text-xs text-tg-hint animate-pulse">Запуск сессии...</span>}
-        {startWorkoutMutation.isError && <span className="text-xs text-red-500">Ошибка запуска</span>}
+        {(startWorkoutMutation.isPending || isLoadingPlans || isLoadingPlanExercises) && <Loader2 className="animate-spin text-tg-link" size={16} />}
+        {startWorkoutMutation.isError && <span className="text-[10px] text-red-500">Ошибка запуска</span>}
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1 text-tg-hint">Дата</label>
+          <label className="block text-[10px] font-bold uppercase tracking-wider mb-1 text-tg-hint ml-1">Дата</label>
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-tg-bg text-tg-text"
+            className="w-full border border-slate-100 rounded-xl py-2 px-3 focus:outline-none focus:ring-2 focus:ring-tg-link bg-tg-bg text-tg-text text-sm"
           />
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           {sessionExercises.length === 0 && (
             <div
               className="text-center py-6 rounded-2xl border border-dashed border-slate-300 bg-tg-bg"
@@ -241,18 +275,18 @@ export default function AddWorkoutSessionView({
           {sessionExercises.map((ex, exIdx) => (
             <div
               key={exIdx}
-              className="border border-slate-200 rounded-2xl p-4 shadow-sm bg-tg-secondaryBg"
+              className="border border-slate-100 rounded-2xl p-3 shadow-sm bg-tg-secondaryBg"
             >
-              <div className="flex justify-between items-center mb-3 border-b border-slate-100 pb-2">
-                <h3 className="font-bold text-lg leading-tight text-tg-text">{ex.name}</h3>
-                <button onClick={() => removeExercise(exIdx)} className="text-red-400 hover:text-red-600 p-1"><Trash2 size={18} /></button>
+              <div className="flex justify-between items-center mb-2 border-b border-slate-50 pb-2">
+                <h3 className="font-bold text-base leading-tight text-tg-text">{ex.name}</h3>
+                <button onClick={() => removeExercise(exIdx)} className="text-red-400 hover:text-red-600 p-1"><Trash2 size={16} /></button>
               </div>
 
-              <div className="space-y-2 mb-3">
+              <div className="space-y-1.5 mb-2">
                 {ex.sets.map((set: any, setIdx: number) => (
                   <div
                     key={setIdx}
-                    className={`flex items-center gap-2 p-2 rounded-xl transition-colors bg-tg-bg ${set.isDone ? 'opacity-60' : ''}`}
+                    className={`flex items-center gap-2 p-1.5 rounded-xl transition-colors bg-tg-bg ${set.isDone ? 'opacity-60' : ''}`}
                   >
                     <button
                       onClick={() => toggleSetDone(exIdx, setIdx)}
@@ -307,26 +341,26 @@ export default function AddWorkoutSessionView({
 
         <button
           onClick={() => setIsDBModalOpen(true)}
-          className="w-full py-4 border-2 border-dashed rounded-2xl font-bold transition-colors flex items-center justify-center gap-2 border-tg-link text-tg-link bg-transparent"
+          className="w-full py-3 border-2 border-dashed rounded-xl font-bold transition-colors flex items-center justify-center gap-2 border-tg-link text-tg-link bg-transparent text-sm"
         >
-          <Search size={20} /> Выбрать упражнение из базы
+          <Search size={18} /> Из базы
         </button>
 
         <div
-          className="pt-4 flex gap-3 sticky bottom-0 pb-2 bg-tg-secondaryBg"
+          className="pt-2 flex gap-3 sticky bottom-0 pb-2 bg-tg-secondaryBg"
         >
           <button
             onClick={onCancel}
-            className="flex-1 py-3.5 rounded-xl font-bold bg-tg-bg text-tg-text"
+            className="flex-1 py-3 rounded-xl font-bold bg-tg-bg text-tg-text text-sm"
           >
             Отмена
           </button>
           <button
             onClick={handleSave}
             disabled={sessionExercises.length === 0 || !session}
-            className="flex-1 py-3.5 bg-green-600 disabled:bg-slate-300 text-white rounded-xl font-bold shadow-lg shadow-green-200"
+            className="flex-1 py-3 bg-green-600 disabled:bg-slate-300 text-white rounded-xl font-bold shadow-lg shadow-green-200 text-sm"
           >
-            {completeWorkoutMutation.isPending ? 'Сохранение...' : 'Завершить'}
+            {completeWorkoutMutation.isPending ? '...' : 'Завершить'}
           </button>
         </div>
       </div>

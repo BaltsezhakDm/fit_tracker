@@ -12,6 +12,40 @@ export function useWorkouts() {
   });
 }
 
+export function useDeleteWorkout() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (sessionId: string) => {
+      await api.delete(`/workouts/${sessionId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workouts'] });
+    },
+  });
+}
+
+export function useWorkoutExercises(sessionId: string) {
+  return useQuery<WorkoutExercise[]>({
+    queryKey: ['workouts', sessionId, 'exercises'],
+    queryFn: async () => {
+      const response = await api.get<WorkoutExercise[]>(`/workouts/${sessionId}/exercises`);
+      return response.data;
+    },
+    enabled: !!sessionId,
+  });
+}
+
+export function useWorkoutSets(workoutExerciseId: string) {
+  return useQuery<WorkoutSet[]>({
+    queryKey: ['workout-exercises', workoutExerciseId, 'sets'],
+    queryFn: async () => {
+      const response = await api.get<WorkoutSet[]>(`/workouts/exercises/${workoutExerciseId}/sets`);
+      return response.data;
+    },
+    enabled: !!workoutExerciseId,
+  });
+}
+
 export function useStartWorkout() {
   const queryClient = useQueryClient();
   return useMutation({
