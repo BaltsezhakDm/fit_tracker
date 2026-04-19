@@ -1,11 +1,31 @@
-import React, { useEffect } from 'react';
-import { BarChart3, TrendingUp, Calendar, Zap, Award } from 'lucide-react';
+import React, { useEffect, useMemo } from 'react';
+import { BarChart3, TrendingUp, Calendar, Zap, Award, Loader2 } from 'lucide-react';
 import { logger } from '../lib/logger';
+import { useWorkouts } from '../hooks/useWorkouts';
 
 export default function StatsView() {
+  const { data: workouts, isLoading } = useWorkouts();
+
   useEffect(() => {
     logger.action('Viewing Statistics/Analytics');
   }, []);
+
+  const stats = useMemo(() => {
+    if (!workouts) return { count: 0 };
+    return {
+      count: workouts.length,
+    };
+  }, [workouts]);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-3">
+        <Loader2 className="animate-spin text-tg-link" size={32} />
+        <p className="text-tg-hint font-medium">Загрузка статистики...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 animate-in fade-in duration-500 pb-10">
       <div className="flex items-center justify-between px-2">
@@ -17,16 +37,16 @@ export default function StatsView() {
         <StatCard
           icon={<TrendingUp className="text-green-500" size={18} />}
           label="Общий объем"
-          value="42,500"
+          value="---"
           unit="кг"
-          trend="+12%"
+          trend="0%"
         />
         <StatCard
           icon={<Calendar className="text-blue-500" size={18} />}
           label="Тренировок"
-          value="18"
+          value={stats.count.toString()}
           unit="шт"
-          trend="+2"
+          trend="Всего"
         />
       </div>
 

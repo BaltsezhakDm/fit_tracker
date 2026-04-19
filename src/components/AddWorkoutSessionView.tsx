@@ -36,15 +36,16 @@ export default function AddWorkoutSessionView({
   const { data: exercisesList } = useExercises();
   const { data: plans, isLoading: isLoadingPlans } = useGetProgramPlans(initialTemplate?.id || null);
   const activePlanId = plans && plans.length > 0 ? plans[0].id : null;
-  const { data: planExercises, isLoading: isLoadingPlanExercises } = useGetPlanExercises(activePlanId);
+  const { data: planExercises, isLoading: isLoadingPlanExercises, isSuccess: isPlanExercisesLoaded } = useGetPlanExercises(activePlanId);
 
   const initialLoadRef = useRef(false);
 
   // Initialize session
   useEffect(() => {
+    // Wait for planId if it's a program-based workout
+    if (initialTemplate && !activePlanId && isLoadingPlans) return;
+
     if (user && !session && !startWorkoutMutation.isPending && !startWorkoutMutation.isError) {
-      // If we have a program, we should ideally wait for its plans to get the planId
-      // But starting a workout with plan_id: null is also valid for base workout
       startWorkoutMutation.mutate({
         planId: activePlanId || undefined
       }, {
@@ -56,30 +57,37 @@ export default function AddWorkoutSessionView({
         }
       });
     }
-  }, [user, initialTemplate, session, activePlanId]);
+  }, [user, initialTemplate, session, activePlanId, isLoadingPlans]);
 
   // Load exercises from plan when they become available
   useEffect(() => {
-    if (planExercises && planExercises.length > 0 && exercisesList && !initialLoadRef.current) {
-      logger.info('Loading exercises from program plan', planExercises);
-      const exercisesToLoad = planExercises.map(pe => {
-        const baseEx = exercisesList.find(e => e.id === pe.exercise_id);
-        return {
-          exercise_id: pe.exercise_id,
-          name: baseEx?.name || 'Упражнение',
-          media_url: baseEx?.media_url,
-          primary_muscle_group: baseEx?.primary_muscle_group,
-          sets: Array.from({ length: pe.target_sets }).map(() => ({
-            reps: pe.target_reps,
-            weight: 0,
-            isDone: false
-          }))
-        };
-      });
-      setSessionExercises(exercisesToLoad);
+    // Only load once we have both exercises list and plan exercises (if it's a plan-based workout)
+    const isReady = initialTemplate
+      ? (isPlanExercisesLoaded && planExercises && exercisesList)
+      : !!exercisesList;
+
+    if (isReady && !initialLoadRef.current) {
+      if (initialTemplate && planExercises && planExercises.length > 0) {
+        logger.info('Loading exercises from program plan', planExercises);
+        const exercisesToLoad = planExercises.map(pe => {
+          const baseEx = exercisesList?.find(e => e.id === pe.exercise_id);
+          return {
+            exercise_id: pe.exercise_id,
+            name: baseEx?.name || 'Упражнение',
+            media_url: baseEx?.media_url,
+            primary_muscle_group: baseEx?.primary_muscle_group,
+            sets: Array.from({ length: pe.target_sets }).map(() => ({
+              reps: pe.target_reps,
+              weight: 0,
+              isDone: false
+            }))
+          };
+        });
+        setSessionExercises(exercisesToLoad);
+      }
       initialLoadRef.current = true;
     }
-  }, [planExercises, exercisesList]);
+  }, [planExercises, exercisesList, isPlanExercisesLoaded, initialTemplate]);
 
   const [saveProgress, setSaveProgress] = useState<{current: number, total: number} | null>(null);
 

@@ -1,14 +1,21 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Timer, Pause, Play, RotateCcw } from 'lucide-react';
+import { useUIStore } from '../store/useUIStore';
 
-interface WorkoutTimerProps {
-  time: number;
-  setTime: React.Dispatch<React.SetStateAction<number>>;
-  isRunning: boolean;
-  setIsRunning: (isRunning: boolean) => void;
-}
+export default function WorkoutTimer() {
+  const time = useUIStore(s => s.timerSeconds);
+  const setTime = useUIStore(s => s.setTimerSeconds);
+  const isRunning = useUIStore(s => s.isTimerRunning);
+  const setIsRunning = useUIStore(s => s.setIsRunning);
 
-export default function WorkoutTimer({ time, setTime, isRunning, setIsRunning }: WorkoutTimerProps) {
+  useEffect(() => {
+    let intervalId: number;
+    if (isRunning) {
+      intervalId = setInterval(() => setTime((s) => s + 1), 1000) as unknown as number;
+    }
+    return () => clearInterval(intervalId);
+  }, [isRunning, setTime]);
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
