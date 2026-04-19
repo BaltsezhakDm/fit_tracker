@@ -4,9 +4,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App.tsx'
 import './index.css'
 
-import WebApp from '@twa-dev/sdk';
+import WebApp from './lib/telegram';
 
-if (typeof WebApp.ready === 'function') {
+if (WebApp && typeof WebApp.ready === 'function') {
   WebApp.ready();
 }
 

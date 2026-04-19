@@ -3,7 +3,7 @@ import { Plus, Trash2, X, Dumbbell, Save, Loader2 } from 'lucide-react';
 import ExerciseDBModal from './ExerciseDBModal';
 import { useCreateProgram, useCreatePlan, useAddExerciseToPlan } from '../hooks/usePrograms';
 import { useAuth } from '../hooks/useAuth';
-import WebApp from '@twa-dev/sdk';
+import WebApp from '../lib/telegram';
 import { logger } from '../lib/logger';
 
 interface CreateProgramViewProps {
@@ -71,11 +71,11 @@ export default function CreateProgramView({ onSave, onCancel }: CreateProgramVie
       }
 
       logger.action('Program saved successfully');
-      WebApp.HapticFeedback?.notificationOccurred('success');
+      WebApp?.HapticFeedback?.notificationOccurred('success');
       onSave();
     } catch (error) {
       logger.error('Failed to save program', error);
-      WebApp.HapticFeedback?.notificationOccurred('error');
+      WebApp?.HapticFeedback?.notificationOccurred('error');
       alert('Ошибка при создании программы. Пожалуйста, проверьте соединение.');
     } finally {
       setIsSaving(false);
