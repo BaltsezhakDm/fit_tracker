@@ -38,6 +38,8 @@ export interface TrainingPlanCreate {
 
 export interface TrainingPlanRead extends TrainingPlan {}
 
+export interface PlanExerciseRead extends PlanExercise {}
+
 export interface PlanExercise {
   plan_id: number;
   exercise_id: number;

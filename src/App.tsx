@@ -13,16 +13,12 @@ import WorkoutTimer from './components/WorkoutTimer';
 
 export default function App() {
   const { user, loading: authLoading } = useAuth();
-  const {
-    activeTab,
-    setActiveTab,
-    activeTemplate,
-    setActiveTemplate,
-    timerSeconds,
-    setTimerSeconds,
-    isTimerRunning,
-    setIsTimerRunning
-  } = useUIStore();
+  const activeTab = useUIStore(s => s.activeTab);
+  const setActiveTab = useUIStore(s => s.setActiveTab);
+  const activeTemplate = useUIStore(s => s.activeTemplate);
+  const setActiveTemplate = useUIStore(s => s.setActiveTemplate);
+  const setTimerSeconds = useUIStore(s => s.setTimerSeconds);
+  const setIsTimerRunning = useUIStore(s => s.setIsTimerRunning);
 
   useEffect(() => {
     logger.info('Initializing Telegram WebApp SDK...');
@@ -39,14 +35,6 @@ export default function App() {
   const startTimer = () => {
     setIsTimerRunning(true);
   };
-
-  useEffect(() => {
-    let intervalId: number;
-    if (isTimerRunning) {
-      intervalId = setInterval(() => setTimerSeconds((s) => s + 1), 1000) as unknown as number;
-    }
-    return () => clearInterval(intervalId);
-  }, [isTimerRunning, setTimerSeconds]);
 
   if (authLoading) {
     return (
@@ -116,12 +104,7 @@ export default function App() {
         {activeTab === 'stats' && <StatsView />}
       </main>
 
-      <WorkoutTimer
-        time={timerSeconds}
-        setTime={setTimerSeconds}
-        isRunning={isTimerRunning}
-        setIsRunning={setIsTimerRunning}
-      />
+      <WorkoutTimer />
 
       <nav
         className="fixed bottom-0 w-full border-t border-slate-200 flex justify-around items-stretch h-20 px-2 z-20 pb-safe bg-tg-secondaryBg"
