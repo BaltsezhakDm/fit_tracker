@@ -12,6 +12,40 @@ export function usePrograms() {
   });
 }
 
+export function useDeleteProgram() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (programId: number) => {
+      await api.delete(`/programs/${programId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['programs'] });
+    },
+  });
+}
+
+export function useGetPlanExercises(planId: number | null) {
+  return useQuery<PlanExerciseRead[]>({
+    queryKey: ['plans', planId, 'exercises'],
+    queryFn: async () => {
+      const response = await api.get<PlanExerciseRead[]>(`/programs/plans/${planId}/exercises`);
+      return response.data;
+    },
+    enabled: !!planId,
+  });
+}
+
+export function useGetProgramPlans(programId: number | null) {
+  return useQuery<TrainingPlanRead[]>({
+    queryKey: ['programs', programId, 'plans'],
+    queryFn: async () => {
+      const response = await api.get<TrainingPlanRead[]>(`/programs/${programId}/plans`);
+      return response.data;
+    },
+    enabled: !!programId,
+  });
+}
+
 export function useCreatePlan() {
   return useMutation({
     mutationFn: async (plan: TrainingPlanCreate) => {
