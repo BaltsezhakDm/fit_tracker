@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Search, Plus, Trash2, X, MoveUp, MoveDown, Dumbbell, Save, Loader2 } from 'lucide-react';
+import { Plus, Trash2, X, Dumbbell, Save, Loader2 } from 'lucide-react';
 import ExerciseDBModal from './ExerciseDBModal';
 import { useCreateProgram, useCreatePlan, useAddExerciseToPlan } from '../hooks/usePrograms';
 import { useAuth } from '../hooks/useAuth';
 import WebApp from '@twa-dev/sdk';
+import { logger } from '../lib/logger';
 
 interface CreateProgramViewProps {
   onSave: () => void;
@@ -23,29 +24,42 @@ export default function CreateProgramView({ onSave, onCancel }: CreateProgramVie
   const [isSaving, setIsSaving] = useState(false);
 
   const handleAddExercise = (exercise: any) => {
+    logger.action('Adding exercise to program template', exercise);
     setSelectedExercises([...selectedExercises, { ...exercise, targetSets: 3, targetReps: 10 }]);
     setIsDBModalOpen(false);
   };
 
   const handleSave = async () => {
-    if (!name || selectedExercises.length === 0 || isSaving) return;
+    if (!name || selectedExercises.length === 0 || isSaving) {
+      logger.warn('Cannot save program: validation failed', { name, exercisesCount: selectedExercises.length });
+      return;
+    }
 
     setIsSaving(true);
+    logger.action('Saving new program template...', { name, exercisesCount: selectedExercises.length });
+
     try {
       // 1. Create the program
+      logger.info('Step 1: Creating program object...');
       const program = await createProgramMutation.mutateAsync({
         name,
         description,
       });
+      logger.info('Program created', { id: program.id });
 
       // 2. Create a default plan for the program
+      logger.info('Step 2: Creating default plan...');
       const plan = await createPlanMutation.mutateAsync({
         name: 'Основная тренировка',
         program_id: program.id,
       });
+      logger.info('Plan created', { id: plan.id });
 
       // 3. Add exercises to the plan
-      for (const ex of selectedExercises) {
+      logger.info('Step 3: Adding exercises to plan...');
+      for (let i = 0; i < selectedExercises.length; i++) {
+        const ex = selectedExercises[i];
+        logger.info(`  Adding exercise ${i + 1}/${selectedExercises.length}: ${ex.name}`);
         await addExerciseToPlanMutation.mutateAsync({
           planId: plan.id,
           exercise: {
@@ -56,11 +70,13 @@ export default function CreateProgramView({ onSave, onCancel }: CreateProgramVie
         });
       }
 
-      WebApp.HapticFeedback.notificationOccurred('success');
+      logger.action('Program saved successfully');
+      WebApp.HapticFeedback?.notificationOccurred('success');
       onSave();
     } catch (error) {
-      console.error('Failed to save program', error);
-      WebApp.HapticFeedback.notificationOccurred('error');
+      logger.error('Failed to save program', error);
+      WebApp.HapticFeedback?.notificationOccurred('error');
+      alert('Ошибка при создании программы. Пожалуйста, проверьте соединение.');
     } finally {
       setIsSaving(false);
     }

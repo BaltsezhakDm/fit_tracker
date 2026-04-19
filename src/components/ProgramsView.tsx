@@ -1,8 +1,8 @@
 import React from 'react';
-import { Play, Plus, FolderOpen, Trash2, ChevronRight, Info } from 'lucide-react';
+import { Play, Plus, FolderOpen, Info } from 'lucide-react';
 import { usePrograms } from '../hooks/usePrograms';
-import { useAuth } from '../hooks/useAuth';
 import SwipeToDelete from './SwipeToDelete';
+import { logger } from '../lib/logger';
 
 interface ProgramsViewProps {
   onStart: (program: any) => void;
@@ -43,7 +43,7 @@ export default function ProgramsView({ onStart, onCreateNew }: ProgramsViewProps
       ) : (
         <div className="grid gap-4">
           {programs.map((program) => (
-            <SwipeToDelete key={program.id} onDelete={() => {}}>
+            <SwipeToDelete key={program.id} onDelete={() => logger.action('Deleting program', program)}>
               <div className="bg-tg-secondaryBg p-6 rounded-[2rem] shadow-sm border border-slate-50 relative overflow-hidden group">
                 <div className="relative z-10">
                   <div className="flex justify-between items-start mb-4">
@@ -55,7 +55,10 @@ export default function ProgramsView({ onStart, onCreateNew }: ProgramsViewProps
 
                   <div className="flex gap-3">
                     <button
-                      onClick={() => onStart(program)}
+                      onClick={() => {
+                        logger.action('Starting workout from program', program);
+                        onStart(program);
+                      }}
                       className="flex-1 bg-tg-link text-white py-3 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-100 active:scale-95 transition-all"
                     >
                       <Play size={18} fill="currentColor" /> Начать

@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { CalendarDays, BarChart3, Plus, Activity, FolderOpen } from 'lucide-react';
 import WebApp from '@twa-dev/sdk';
+import { logger } from './lib/logger';
 import { useAuth } from './hooks/useAuth';
 import { useUIStore } from './store/useUIStore';
 import DiaryView from './components/DiaryView';
@@ -24,6 +25,7 @@ export default function App() {
   } = useUIStore();
 
   useEffect(() => {
+    logger.info('Initializing Telegram WebApp SDK...');
     if (typeof WebApp.expand === 'function') {
       WebApp.expand();
     }

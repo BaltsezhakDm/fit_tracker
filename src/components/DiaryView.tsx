@@ -1,8 +1,8 @@
 import React from 'react';
-import { Trash2, History, Dumbbell, Calendar, ChevronRight } from 'lucide-react';
+import { History, Dumbbell, Calendar, ChevronRight } from 'lucide-react';
 import { useWorkouts } from '../hooks/useWorkouts';
-import { useAuth } from '../hooks/useAuth';
 import SwipeToDelete from './SwipeToDelete';
+import { logger } from '../lib/logger';
 
 export default function DiaryView() {
   const { data: workouts, isLoading } = useWorkouts();
@@ -34,8 +34,11 @@ export default function DiaryView() {
 
       <div className="space-y-4">
         {workouts.map((workout) => (
-          <SwipeToDelete key={workout.id} onDelete={() => {}}>
-            <div className="bg-tg-secondaryBg p-5 rounded-3xl shadow-sm border border-slate-50 flex items-center gap-4 group active:scale-[0.98] transition-all">
+          <SwipeToDelete key={workout.id} onDelete={() => logger.action('Deleting workout history item', workout)}>
+            <div
+              className="bg-tg-secondaryBg p-5 rounded-3xl shadow-sm border border-slate-50 flex items-center gap-4 group active:scale-[0.98] transition-all"
+              onClick={() => logger.action('Viewing workout details', workout)}
+            >
               <div className="w-12 h-12 bg-tg-bg rounded-2xl flex flex-col items-center justify-center shrink-0 border border-slate-100">
                 <Calendar size={18} className="text-tg-link" />
               </div>
