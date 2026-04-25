@@ -76,3 +76,25 @@ export function useCreateProgram() {
     },
   });
 }
+
+export function useUpdateProgram() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, program }: { id: number; program: Partial<TrainingProgram> }) => {
+      const response = await api.put<TrainingProgram>(`/programs/${id}`, program);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['programs'] });
+    },
+  });
+}
+
+export function useDeletePlanExercises() {
+  return useMutation({
+    mutationFn: async (planId: number) => {
+      await api.delete(`/programs/plans/${planId}/exercises`);
+    },
+  });
+}
+

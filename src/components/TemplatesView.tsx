@@ -33,13 +33,17 @@ export default function TemplatesView() {
           {programs?.map((program) => (
             <div 
               key={program.id}
-              className="bg-[#1c1c1e] p-5 rounded-2xl active:scale-[0.98] transition-transform border border-white/5"
+              onClick={() => {
+                useUIStore.getState().setActiveTemplate(program);
+                setActiveTab('add');
+              }}
+              className="bg-[#1c1c1e] p-5 rounded-2xl active:scale-[0.98] transition-transform border border-white/5 cursor-pointer"
             >
               <div className="flex justify-between items-start mb-2">
                 <h4 className="text-lg font-bold text-tg-text">{program.name}</h4>
               </div>
               <p className="text-sm text-tg-hint line-clamp-2 leading-relaxed">
-                {program.description || 'Жим гантелей на наклонной скамье, Тяга верхнего блока узким хватом'}
+                {program.description || 'Нажмите, чтобы начать тренировку по этому шаблону'}
               </p>
             </div>
           ))}
@@ -54,9 +58,9 @@ export default function TemplatesView() {
         </div>
       </div>
 
-      <div className="mt-8 flex items-center justify-center gap-2 text-tg-hint py-4">
-        <Lock size={16} />
-        <span className="text-sm font-medium">Текущий лимит - 3 шаблона.</span>
+      <div className="mt-8 flex items-center justify-center gap-2 text-tg-hint py-4 opacity-50">
+        <TrendingUp size={16} />
+        <span className="text-sm font-medium">Ваш прогресс не ограничен.</span>
       </div>
 
       <button

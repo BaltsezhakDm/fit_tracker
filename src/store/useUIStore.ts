@@ -6,6 +6,8 @@ interface UIState {
   setActiveTab: (tab: string) => void;
   activeTemplate: any | null;
   setActiveTemplate: (template: any | null) => void;
+  editingProgram: any | null;
+  setEditingProgram: (program: any | null) => void;
   timerSeconds: number;
   setTimerSeconds: (seconds: number | ((s: number) => number)) => void;
   isTimerRunning: boolean;
@@ -28,6 +30,11 @@ export const useUIStore = create<UIState>((set) => ({
   setActiveTemplate: (template) => {
     logger.action(`UI: Set active template`, template);
     set({ activeTemplate: template });
+  },
+  editingProgram: null,
+  setEditingProgram: (program) => {
+    logger.action(`UI: Set editing program`, program);
+    set({ editingProgram: program });
   },
   timerSeconds: 0,
   setTimerSeconds: (seconds) =>

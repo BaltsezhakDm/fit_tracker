@@ -78,7 +78,13 @@ export default function ProgramsView({ onStart, onCreateNew }: ProgramsViewProps
                     >
                       <Play size={16} fill="currentColor" /> Начать
                     </button>
-                    <button className="bg-tg-bg text-tg-hint p-2.5 rounded-xl hover:text-tg-text transition-colors">
+                    <button 
+                      onClick={() => {
+                        useUIStore.getState().setEditingProgram(program);
+                        useUIStore.getState().setActiveTab('createProgram');
+                      }}
+                      className="bg-tg-bg text-tg-hint p-2.5 rounded-xl hover:text-tg-text transition-colors"
+                    >
                       <Info size={18} />
                     </button>
                   </div>

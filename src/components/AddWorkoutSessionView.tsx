@@ -101,33 +101,52 @@ export default function AddWorkoutSessionView({
       : !!exercisesList;
 
     if (isReady && !initialLoadRef.current) {
-      if (initialTemplate && planExercises && planExercises.length > 0) {
-        const exercisesToLoad = planExercises.map(pe => {
-          const baseEx = exercisesList?.find(e => e.id === pe.exercise_id);
-          return {
-            exercise_id: pe.exercise_id,
-            name: baseEx?.name || 'Упражнение',
-            media_url: baseEx?.media_url,
-            primary_muscle_group: baseEx?.primary_muscle_group,
-            muscle_weights: baseEx?.muscle_weights || {},
-            sets: Array.from({ length: pe.target_sets }).map(() => ({
-              reps: pe.target_reps,
-              weight: 0,
-              rpe: null,
-              isDone: false,
-              one_rm: null,
-            })),
-          };
-        });
-        setSessionExercises(exercisesToLoad);
+      if (initialTemplate) {
+        if (planExercises) {
+          if (planExercises.length > 0) {
+            const exercisesToLoad = planExercises.map(pe => {
+              const baseEx = exercisesList?.find(e => e.id === pe.exercise_id);
+              return {
+                exercise_id: pe.exercise_id,
+                name: baseEx?.name || 'Упражнение',
+                media_url: baseEx?.media_url,
+                primary_muscle_group: baseEx?.primary_muscle_group,
+                muscle_weights: baseEx?.muscle_weights || {},
+                sets: Array.from({ length: pe.target_sets }).map(() => ({
+                  reps: pe.target_reps,
+                  weight: 0,
+                  rpe: null,
+                  isDone: false,
+                  one_rm: null,
+                })),
+              };
+            });
+            setSessionExercises(exercisesToLoad);
+          }
+          initialLoadRef.current = true;
+        }
+      } else {
+        // No template, just start empty
+        initialLoadRef.current = true;
       }
-      initialLoadRef.current = true;
     }
   }, [planExercises, exercisesList, isPlanExercisesLoaded, initialTemplate]);
 
   const [saveProgress, setSaveProgress] = useState<{ current: number; total: number } | null>(null);
   const startRestTimer = useUIStore(s => s.startRestTimer);
+  const deleteWorkoutMutation = useDeleteWorkout();
   const dupParams = DUP_PARAMS[dayType];
+
+  const handleCancel = async () => {
+    if (session) {
+      try {
+        await deleteWorkoutMutation.mutateAsync(session.id);
+      } catch (err) {
+        console.error("Failed to delete empty session", err);
+      }
+    }
+    onCancel();
+  };
 
   const handleSave = useCallback(async () => {
     if (!session) return;
@@ -459,8 +478,8 @@ export default function AddWorkoutSessionView({
           <Search size={18} /> Из базы
         </button>
 
-        <div className="pt-2 flex gap-3 sticky bottom-0 pb-2 bg-tg-secondaryBg">
-          <button onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold bg-tg-bg text-tg-text text-sm">
+        <div className="pt-2 flex gap-3 sticky bottom-0 pb-20 bg-tg-secondaryBg">
+          <button onClick={handleCancel} className="flex-1 py-3 rounded-xl font-bold bg-tg-bg text-tg-text text-sm">
             Отмена
           </button>
           <button
