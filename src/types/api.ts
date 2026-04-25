@@ -105,3 +105,28 @@ export interface PaginatedResponse<T> {
 
 export type PageExerciseRead = PaginatedResponse<Exercise>;
 export type PageWorkoutSessionRead = PaginatedResponse<WorkoutSession>;
+
+export interface AnalyticsSummary {
+  total_volume: number;
+  workouts_count: number;
+  last_week_volume_change_percent: number;
+  records_count: number;
+}
+
+export interface WorkloadData {
+  date: string;
+  volume: number;
+}
+
+export interface PersonalRecord {
+  exercise_id: number;
+  exercise_name: string;
+  weight: number;
+  date: string;
+}
+
+export interface MuscleWorkload {
+  muscle: string;
+  volume: number;
+  sets_count: number;
+}

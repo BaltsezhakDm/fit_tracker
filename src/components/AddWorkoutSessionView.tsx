@@ -6,6 +6,7 @@ import { useStartWorkout, useAddExerciseToSession, useAddSet, useCompleteWorkout
 import { useGetProgramPlans, useGetPlanExercises } from '../hooks/usePrograms';
 import { useExercises } from '../hooks/useExercises';
 import { useAuth } from '../hooks/useAuth';
+import { useUIStore } from '../store/useUIStore';
 import { WorkoutSession } from '../types/api';
 import { logger } from '../lib/logger';
 
@@ -79,6 +80,8 @@ export default function AddWorkoutSessionView({
             sets: Array.from({ length: pe.target_sets }).map(() => ({
               reps: pe.target_reps,
               weight: 0,
+              rpe: null,
+              rir: null,
               isDone: false
             }))
           };
@@ -121,7 +124,7 @@ export default function AddWorkoutSessionView({
         const doneSets = ex.sets.filter((s: any) => s.isDone);
         for (let j = 0; j < doneSets.length; j++) {
           const set = doneSets[j];
-          logger.info(`  Saving set ${j + 1}/${doneSets.length}: ${set.weight}kg x ${set.reps}`);
+          logger.info(`  Saving set ${j + 1}/${doneSets.length}: ${set.weight}kg x ${set.reps} (RPE: ${set.rpe})`);
           await addSetMutation.mutateAsync({
             workoutExerciseId: workoutEx.id,
             set: {
@@ -130,8 +133,8 @@ export default function AddWorkoutSessionView({
               time_spent_seconds: null,
               rest_time_seconds: null,
               is_warmup: false,
-              rpe: null,
-              rir: null
+              rpe: set.rpe,
+              rir: set.rir
             }
           });
         }
@@ -179,6 +182,8 @@ export default function AddWorkoutSessionView({
       sets: [{
         reps: 10,
         weight: 0,
+        rpe: null,
+        rir: null,
         isDone: false
       }]
     }]);
@@ -193,6 +198,8 @@ export default function AddWorkoutSessionView({
     updated[exIndex].sets.push({
       reps: lastSet ? lastSet.reps : 10,
       weight: lastSet ? lastSet.weight : 0,
+      rpe: lastSet ? lastSet.rpe : null,
+      rir: lastSet ? lastSet.rir : null,
       isDone: false
     });
     setSessionExercises(updated);
@@ -210,6 +217,8 @@ export default function AddWorkoutSessionView({
     }
   };
 
+  const startRestTimer = useUIStore(s => s.startRestTimer);
+
   const toggleSetDone = (exIndex: number, setIndex: number) => {
     const ex = sessionExercises[exIndex];
     const set = ex.sets[setIndex];
@@ -223,12 +232,14 @@ export default function AddWorkoutSessionView({
     if (newState) {
       WebApp?.HapticFeedback?.impactOccurred('medium');
       if (onStartTimer) onStartTimer();
+      // Start rest timer (default 90 seconds)
+      startRestTimer(90);
     }
   };
 
-  const updateSet = (exIndex: number, setIndex: number, field: string, value: string) => {
+  const updateSet = (exIndex: number, setIndex: number, field: string, value: string | number | null) => {
     const updated = [...sessionExercises];
-    updated[exIndex].sets[setIndex][field] = Number(value);
+    updated[exIndex].sets[setIndex][field] = value === '' ? null : (typeof value === 'string' ? Number(value) : value);
     setSessionExercises(updated);
   };
 
@@ -290,40 +301,61 @@ export default function AddWorkoutSessionView({
                 <button onClick={() => removeExercise(exIdx)} className="text-red-400 hover:text-red-600 p-1"><Trash2 size={16} /></button>
               </div>
 
-              <div className="space-y-1.5 mb-2">
+              <div className="space-y-2 mb-2">
                 {ex.sets.map((set: any, setIdx: number) => (
                   <div
                     key={setIdx}
-                    className={`flex items-center gap-2 p-1.5 rounded-xl transition-colors bg-tg-bg ${set.isDone ? 'opacity-60' : ''}`}
+                    className={`p-2 rounded-xl transition-colors bg-tg-bg ${set.isDone ? 'opacity-60' : ''}`}
                   >
-                    <button
-                      onClick={() => toggleSetDone(exIdx, setIdx)}
-                      className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${set.isDone ? 'bg-green-500 text-white' : 'border-2 border-slate-200 text-transparent'}`}
-                    >
-                      <CheckCircle2 size={14} />
-                    </button>
-                    <div className="flex-1 flex gap-2">
-                      <div className="relative flex-1">
-                        <input
-                          type="number"
-                          value={set.weight || ''}
-                          onChange={(e) => updateSet(exIdx, setIdx, 'weight', e.target.value)}
-                          className="w-full border border-slate-200 rounded-lg py-2 pl-2 pr-6 focus:ring-2 focus:ring-blue-500 text-center font-semibold bg-tg-secondaryBg text-tg-text"
-                        />
-                        <span className="absolute right-2 top-2.5 text-[10px] text-tg-hint">кг</span>
+                    <div className="flex items-center gap-2 mb-2">
+                      <button
+                        onClick={() => toggleSetDone(exIdx, setIdx)}
+                        className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-colors ${set.isDone ? 'bg-green-500 text-white' : 'border-2 border-slate-200 text-transparent'}`}
+                      >
+                        <CheckCircle2 size={14} />
+                      </button>
+                      <div className="flex-1 flex gap-2">
+                        <div className="relative flex-1">
+                          <input
+                            type="number"
+                            placeholder="Вес"
+                            value={set.weight || ''}
+                            onChange={(e) => updateSet(exIdx, setIdx, 'weight', e.target.value)}
+                            className="w-full border border-slate-200 rounded-lg py-2 pl-2 pr-6 focus:ring-2 focus:ring-blue-500 text-center font-semibold bg-tg-secondaryBg text-tg-text text-sm"
+                          />
+                          <span className="absolute right-2 top-2.5 text-[10px] text-tg-hint">кг</span>
+                        </div>
+                        <div className="flex items-center text-slate-300">×</div>
+                        <div className="relative flex-1">
+                          <input
+                            type="number"
+                            placeholder="Повт"
+                            value={set.reps || ''}
+                            onChange={(e) => updateSet(exIdx, setIdx, 'reps', e.target.value)}
+                            className="w-full border border-slate-200 rounded-lg py-2 pl-2 pr-8 focus:ring-2 focus:ring-blue-500 text-center font-semibold bg-tg-secondaryBg text-tg-text text-sm"
+                          />
+                          <span className="absolute right-2 top-2.5 text-[10px] text-tg-hint">раз</span>
+                        </div>
                       </div>
-                      <div className="flex items-center text-slate-300">×</div>
-                      <div className="relative flex-1">
-                        <input
-                          type="number"
-                          value={set.reps || ''}
-                          onChange={(e) => updateSet(exIdx, setIdx, 'reps', e.target.value)}
-                          className="w-full border border-slate-200 rounded-lg py-2 pl-2 pr-8 focus:ring-2 focus:ring-blue-500 text-center font-semibold bg-tg-secondaryBg text-tg-text"
-                        />
-                        <span className="absolute right-2 top-2.5 text-[10px] text-tg-hint">раз</span>
-                      </div>
+                      <button onClick={() => removeSet(exIdx, setIdx)} className="p-1 text-slate-300 hover:text-red-400"><X size={16} /></button>
                     </div>
-                    <button onClick={() => removeSet(exIdx, setIdx)} className="p-2 text-slate-300 hover:text-red-400"><X size={16} /></button>
+                    
+                    <div className="flex gap-2 px-1">
+                       <div className="flex-1 flex items-center gap-1.5">
+                          <span className="text-[9px] font-bold text-tg-hint whitespace-nowrap">RPE:</span>
+                          <div className="flex gap-1 flex-1">
+                            {[7, 8, 9, 10].map(val => (
+                              <button
+                                key={val}
+                                onClick={() => updateSet(exIdx, setIdx, 'rpe', set.rpe === val ? null : val)}
+                                className={`flex-1 text-[10px] font-bold py-1 rounded-md transition-colors ${set.rpe === val ? 'bg-tg-link text-white' : 'bg-tg-secondaryBg text-tg-hint border border-slate-100'}`}
+                              >
+                                {val}
+                              </button>
+                            ))}
+                          </div>
+                       </div>
+                    </div>
                   </div>
                 ))}
               </div>

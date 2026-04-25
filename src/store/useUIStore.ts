@@ -10,6 +10,12 @@ interface UIState {
   setTimerSeconds: (seconds: number | ((s: number) => number)) => void;
   isTimerRunning: boolean;
   setIsTimerRunning: (isRunning: boolean) => void;
+  // Rest Timer
+  restTimerSeconds: number;
+  isRestTimerActive: boolean;
+  startRestTimer: (seconds: number) => void;
+  stopRestTimer: () => void;
+  setRestTimerSeconds: (seconds: number | ((s: number) => number)) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -33,5 +39,21 @@ export const useUIStore = create<UIState>((set) => ({
   setIsTimerRunning: (isRunning) => {
     logger.action(`UI: ${isRunning ? 'Start' : 'Stop'} timer`);
     set({ isTimerRunning: isRunning });
+  },
+  // Rest Timer
+  restTimerSeconds: 0,
+  isRestTimerActive: false,
+  setRestTimerSeconds: (seconds) =>
+    set((state) => {
+      const newSeconds = typeof seconds === 'function' ? seconds(state.restTimerSeconds) : seconds;
+      return { restTimerSeconds: newSeconds };
+    }),
+  startRestTimer: (seconds) => {
+    logger.action(`UI: Start rest timer for ${seconds}s`);
+    set({ restTimerSeconds: seconds, isRestTimerActive: true });
+  },
+  stopRestTimer: () => {
+    logger.action(`UI: Stop rest timer`);
+    set({ restTimerSeconds: 0, isRestTimerActive: false });
   },
 }));

@@ -1,18 +1,21 @@
 import React, { useEffect } from 'react';
-import { CalendarDays, BarChart3, Plus, Activity, FolderOpen } from 'lucide-react';
+import { CalendarDays, BarChart3, Plus, Activity, FolderOpen, TrendingUp, Settings, FileText, LineChart } from 'lucide-react';
 import WebApp from './lib/telegram';
 import { logger } from './lib/logger';
 import { useAuth } from './hooks/useAuth';
 import { useUIStore } from './store/useUIStore';
 import DiaryView from './components/DiaryView';
 import ProgramsView from './components/ProgramsView';
+import TemplatesView from './components/TemplatesView';
 import AddWorkoutSessionView from './components/AddWorkoutSessionView';
 import CreateProgramView from './components/CreateProgramView';
 import StatsView from './components/StatsView';
+import MuscleHeatmapView from './components/MuscleHeatmapView';
 import WorkoutTimer from './components/WorkoutTimer';
+import RestTimer from './components/RestTimer';
 
 export default function App() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, loginAsGuest } = useAuth();
   const activeTab = useUIStore(s => s.activeTab);
   const setActiveTab = useUIStore(s => s.setActiveTab);
   const activeTemplate = useUIStore(s => s.activeTemplate);
@@ -46,22 +49,35 @@ export default function App() {
       </div>
     );
   }
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-tg-bg p-8">
+        <div className="w-full max-w-sm bg-tg-secondaryBg p-8 rounded-3xl shadow-xl flex flex-col items-center text-center">
+           <div className="w-20 h-20 bg-tg-link/10 text-tg-link rounded-full flex items-center justify-center mb-6">
+              <Activity size={40} />
+           </div>
+           <h1 className="text-2xl font-bold text-tg-text mb-2">Добро пожаловать</h1>
+           <p className="text-sm text-tg-hint mb-8">Для работы приложения в обычном браузере необходимо войти в тестовый режим.</p>
+           <button 
+             onClick={loginAsGuest}
+             className="w-full py-4 bg-tg-link text-white rounded-2xl font-bold mb-3 shadow-lg shadow-blue-100"
+           >
+             Войти как Тестер
+           </button>
+           <p className="text-[10px] text-tg-hint">Если вы разработчик, убедитесь что бэкенд запущен локально.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
-      className="min-h-screen font-sans pb-20 relative pl-safe pr-safe pt-safe bg-tg-bg text-tg-text"
+      className="min-h-screen font-sans pb-20 relative pl-safe pr-safe pt-safe bg-tg-bg text-tg-text overflow-hidden"
     >
-      <header
-        className="backdrop-blur-md px-4 pt-4 pb-4 shadow-sm sticky top-0 z-10 flex justify-between items-center bg-tg-secondaryBg"
-      >
-        <h1 className="text-2xl font-bold flex items-center gap-2 text-tg-text">
-          <Activity className="text-tg-link" />
-          FitTracker
-        </h1>
-      </header>
-
-      <main className="p-4">
+      <main className="p-2 h-[calc(100vh-80px)] overflow-y-auto hide-scrollbar">
         {activeTab === 'diary' && <DiaryView />}
+        {activeTab === 'template' && <TemplatesView />}
+        {activeTab === 'progression' && <MuscleHeatmapView />}
 
         {activeTab === 'programs' && (
           <ProgramsView
@@ -96,8 +112,8 @@ export default function App() {
 
         {activeTab === 'createProgram' && (
           <CreateProgramView
-            onSave={() => setActiveTab('programs')}
-            onCancel={() => setActiveTab('programs')}
+            onSave={() => setActiveTab('template')}
+            onCancel={() => setActiveTab('template')}
           />
         )}
 
@@ -105,19 +121,16 @@ export default function App() {
       </main>
 
       <WorkoutTimer />
+      <RestTimer />
 
       <nav
-        className="fixed bottom-0 w-full border-t border-slate-200 flex justify-around items-stretch h-20 px-2 z-20 pb-safe bg-tg-secondaryBg"
+        className="fixed bottom-0 w-full border-t border-tg-secondaryBg/10 flex justify-around items-stretch h-20 px-2 z-[110] pb-safe bg-[#121212]/90 backdrop-blur-2xl"
       >
-        <NavButton icon={<CalendarDays size={22} />} label="Дневник" isActive={activeTab === 'diary'} onClick={() => setActiveTab('diary')} />
-        <NavButton icon={<FolderOpen size={22} />} label="Программы" isActive={activeTab === 'programs'} onClick={() => setActiveTab('programs')} />
-        <NavButton
-          icon={<div className="bg-blue-500 text-white p-3 rounded-full shadow-lg shadow-blue-200 transform -translate-y-4"><Plus size={24} /></div>}
-          label=""
-          isActive={activeTab === 'add' || activeTab === 'createProgram'}
-          onClick={() => { setActiveTemplate(null); setActiveTab('add'); }}
-        />
-        <NavButton icon={<BarChart3 size={22} />} label="Статистика" isActive={activeTab === 'stats'} onClick={() => setActiveTab('stats')} />
+        <NavButton icon={<CalendarDays size={22} />} label="Календарь" isActive={activeTab === 'diary'} onClick={() => setActiveTab('diary')} />
+        <NavButton icon={<FileText size={22} />} label="Шаблон" isActive={activeTab === 'template'} onClick={() => setActiveTab('template')} />
+        <NavButton icon={<BarChart3 size={22} />} label="Программа" isActive={activeTab === 'programs'} onClick={() => setActiveTab('programs')} />
+        <NavButton icon={<LineChart size={22} />} label="Аналитика" isActive={activeTab === 'stats'} onClick={() => setActiveTab('stats')} />
+        <NavButton icon={<Settings size={22} />} label="Настройки" isActive={activeTab === 'settings'} onClick={() => {}} />
       </nav>
     </div>
   );
@@ -125,11 +138,15 @@ export default function App() {
 
 function NavButton({ icon, label, isActive, onClick }: { icon: React.ReactNode, label: string, isActive: boolean, onClick: () => void }) {
   return (
-    <button onClick={onClick} className={`flex flex-col items-center justify-center w-20 transition-colors pt-2 ${isActive ? 'text-tg-link' : 'text-tg-hint hover:text-tg-text'}`}>
-      <div className="flex flex-col items-center justify-center">
-        {icon}
-        {label && <span className="text-[10px] mt-1 font-medium">{label}</span>}
+    <button onClick={onClick} className={`flex flex-col items-center justify-center flex-1 transition-all pt-1 ${isActive ? 'text-tg-link' : 'text-tg-hint'}`}>
+      <div className="flex flex-col items-center justify-center gap-1">
+        <div className={`${isActive ? 'scale-110 transition-transform' : 'opacity-70'}`}>
+          {icon}
+        </div>
+        <span className={`text-[10px] font-medium ${isActive ? 'opacity-100' : 'opacity-70'}`}>{label}</span>
       </div>
     </button>
   );
 }
+
+

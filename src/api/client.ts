@@ -2,7 +2,7 @@ import axios from 'axios';
 import { logger } from '../lib/logger';
 
 const api = axios.create({
-  baseURL: 'https://test.sttgeo.ru:8443',
+  baseURL: import.meta.env.DEV ? 'http://localhost:8000' : 'https://test.sttgeo.ru:8443',
 });
 
 api.interceptors.request.use((config) => {

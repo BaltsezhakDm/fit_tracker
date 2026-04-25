@@ -61,5 +61,26 @@ export function useAuth() {
     login();
   }, []);
 
-  return { user, loading };
+  const loginAsGuest = async () => {
+    setLoading(true);
+    try {
+      logger.info('Logging in as guest (local testing)...');
+      // For local testing, we can use a hardcoded telegram_id if the backend allows it
+      // or just assume the backend might have a guest login or we already have a token
+      const response = await api.post<AuthResponse>('/auth/telegram', { initData: 'guest_mode' });
+      const token = response.data.access_token;
+      localStorage.setItem('access_token', token);
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      
+      const userRes = await api.get<User>('/users/me');
+      setUser(userRes.data);
+    } catch (error) {
+      logger.error('Guest login failed', error);
+      alert('Local login failed. Make sure your backend supports guest_mode or has a valid token.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { user, loading, loginAsGuest };
 }

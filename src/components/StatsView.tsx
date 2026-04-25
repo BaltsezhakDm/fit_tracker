@@ -1,21 +1,30 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect } from 'react';
 import { BarChart3, TrendingUp, Calendar, Zap, Award, Loader2 } from 'lucide-react';
 import { logger } from '../lib/logger';
-import { useWorkouts } from '../hooks/useWorkouts';
+import { useAnalyticsSummary, useWorkload, usePersonalRecords } from '../hooks/useAnalytics';
+import ExerciseProgressionView from './ExerciseProgressionView';
 
 export default function StatsView() {
-  const { data: workouts, isLoading } = useWorkouts();
+  const { data: summary, isLoading: isLoadingSummary } = useAnalyticsSummary();
+  const { data: workload, isLoading: isLoadingWorkload } = useWorkload('week');
+  const { data: records, isLoading: isLoadingRecords } = usePersonalRecords();
+  const [selectedExercise, setSelectedExercise] = React.useState<{id: number, name: string} | null>(null);
 
   useEffect(() => {
     logger.action('Viewing Statistics/Analytics');
   }, []);
 
-  const stats = useMemo(() => {
-    if (!workouts) return { count: 0 };
-    return {
-      count: workouts.length,
-    };
-  }, [workouts]);
+  const isLoading = isLoadingSummary || isLoadingWorkload || isLoadingRecords;
+
+  if (selectedExercise) {
+    return (
+      <ExerciseProgressionView 
+        exerciseId={selectedExercise.id} 
+        exerciseName={selectedExercise.name} 
+        onClose={() => setSelectedExercise(null)} 
+      />
+    );
+  }
 
   if (isLoading) {
     return (
@@ -37,16 +46,18 @@ export default function StatsView() {
         <StatCard
           icon={<TrendingUp className="text-green-500" size={18} />}
           label="Общий объем"
-          value="---"
+          value={summary?.total_volume.toLocaleString() || '0'}
           unit="кг"
-          trend="0%"
+          trend={`${summary?.last_week_volume_change_percent.toFixed(1) || 0}%`}
+          trendUp={summary ? summary.last_week_volume_change_percent >= 0 : true}
         />
         <StatCard
           icon={<Calendar className="text-blue-500" size={18} />}
           label="Тренировок"
-          value={stats.count.toString()}
+          value={summary?.workouts_count.toString() || '0'}
           unit="шт"
           trend="Всего"
+          trendUp={true}
         />
       </div>
 
@@ -55,40 +66,63 @@ export default function StatsView() {
           <div className="w-8 h-8 bg-tg-bg rounded-lg flex items-center justify-center">
             <BarChart3 size={16} className="text-tg-link" />
           </div>
-          <h3 className="font-bold text-tg-text text-base">Нагрузка</h3>
+          <h3 className="font-bold text-tg-text text-base">Нагрузка (пред. 7 дней)</h3>
         </div>
 
         <div className="h-32 flex items-end justify-between gap-1.5 px-1">
-           {[40, 70, 45, 90, 65, 30, 80].map((h, i) => (
-             <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-                <div
-                  className="w-full bg-tg-link rounded-t-md transition-all duration-1000"
-                  style={{ height: `${h}%` }}
-                ></div>
-                <span className="text-[8px] font-bold text-tg-hint">Пн</span>
+           {workload?.map((day, i) => {
+             const maxVolume = Math.max(...workload.map(d => d.volume), 1);
+             const height = (day.volume / maxVolume) * 100;
+             const dayName = new Date(day.date).toLocaleDateString('ru-RU', { weekday: 'short' });
+             
+             return (
+               <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+                  <div
+                    className="w-full bg-tg-link rounded-t-md transition-all duration-1000 min-h-[4px]"
+                    style={{ height: `${Math.max(height, 5)}%` }}
+                    title={`${day.volume} кг`}
+                  ></div>
+                  <span className="text-[8px] font-bold text-tg-hint uppercase">{dayName}</span>
+               </div>
+             );
+           })}
+           {(!workload || workload.length === 0) && (
+             <div className="w-full flex items-center justify-center h-full text-tg-hint text-xs">
+               Нет данных за неделю
              </div>
-           ))}
+           )}
         </div>
       </div>
 
       <div className="bg-tg-secondaryBg p-4 rounded-2xl shadow-sm border border-slate-50">
-         <h3 className="font-bold text-tg-text mb-3 text-base">Рекорды</h3>
+         <h3 className="font-bold text-tg-text mb-3 text-base">Личные рекорды</h3>
          <div className="space-y-2">
-            <RecordRow exercise="Жим лежа" weight="100 кг" date="3 дня назад" />
-            <RecordRow exercise="Приседания" weight="140 кг" date="1 неделю назад" />
-            <RecordRow exercise="Становая тяга" weight="160 кг" date="2 недели назад" />
+            {records?.slice(0, 5).map((record, i) => (
+              <RecordRow 
+                key={i}
+                exercise={record.exercise_name} 
+                weight={`${record.weight} кг`} 
+                date={new Date(record.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} 
+                onClick={() => setSelectedExercise({id: record.exercise_id, name: record.exercise_name})}
+              />
+            ))}
+            {(!records || records.length === 0) && (
+              <p className="text-center py-4 text-tg-hint text-sm">Рекорды пока не установлены</p>
+            )}
          </div>
       </div>
     </div>
   );
 }
 
-function StatCard({ icon, label, value, unit, trend }: any) {
+function StatCard({ icon, label, value, unit, trend, trendUp }: any) {
   return (
     <div className="bg-tg-secondaryBg p-4 rounded-2xl shadow-sm border border-slate-50">
       <div className="flex justify-between items-start mb-2">
         <div className="p-1.5 bg-tg-bg rounded-lg">{icon}</div>
-        <span className="text-[8px] font-bold text-green-500 bg-green-50 px-1.5 py-0.5 rounded-md">{trend}</span>
+        <span className={`text-[8px] font-bold ${trendUp ? 'text-green-500 bg-green-50' : 'text-red-500 bg-red-50'} px-1.5 py-0.5 rounded-md`}>
+          {trend}
+        </span>
       </div>
       <p className="text-[10px] font-medium text-tg-hint mb-0.5">{label}</p>
       <div className="flex items-baseline gap-1">
@@ -99,15 +133,18 @@ function StatCard({ icon, label, value, unit, trend }: any) {
   );
 }
 
-function RecordRow({ exercise, weight, date }: any) {
+function RecordRow({ exercise, weight, date, onClick }: any) {
   return (
-    <div className="flex items-center justify-between p-3 bg-tg-bg rounded-2xl">
+    <div 
+      className="flex items-center justify-between p-3 bg-tg-bg rounded-2xl cursor-pointer active:scale-[0.98] transition-transform"
+      onClick={onClick}
+    >
       <div className="flex items-center gap-3">
         <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center text-amber-600">
            <Award size={18} />
         </div>
         <div>
-          <h4 className="text-sm font-bold text-tg-text">{exercise}</h4>
+          <h4 className="text-sm font-bold text-tg-text truncate max-w-[120px]">{exercise}</h4>
           <p className="text-[10px] text-tg-hint">{date}</p>
         </div>
       </div>
