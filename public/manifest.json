@@ -1,0 +1,31 @@
+{
+  "name": "Smart Fit Tracker",
+  "short_name": "FitTrack",
+  "description": "Умный дневник тренировок с DUP-периодизацией и анализом нагрузки",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#121212",
+  "theme_color": "#2e7cf6",
+  "categories": ["health", "fitness", "sports"],
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Начать тренировку",
+      "short_name": "Тренировка",
+      "description": "Быстрый старт новой тренировки",
+      "url": "/?action=start-workout",
+      "icons": [{ "src": "favicon.svg", "sizes": "any" }]
+    }
+  ]
+}

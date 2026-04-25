@@ -5,6 +5,8 @@ export interface User {
   created_at: string; // ISO 8601 datetime
 }
 
+export type DayType = 'strength' | 'hypertrophy' | 'power';
+
 export interface Exercise {
   id: number;
   name: string;
@@ -14,6 +16,9 @@ export interface Exercise {
   media_url: string | null;
   comment: string | null;
   biomechanics_tags: string[];
+  // Умные поля (из exercises_smart в Supabase)
+  category?: string;
+  muscle_weights?: Record<string, number>; // {"chest": 1.0, "triceps": 0.6}
 }
 
 export interface TrainingProgram {
@@ -62,6 +67,11 @@ export interface WorkoutSession {
   start_time: string;
   end_time: string | null;
   status: WorkoutStatus;
+  // Умные поля
+  actual_duration?: number;
+  total_volume?: number;
+  is_deload?: boolean;
+  day_type?: DayType;
 }
 
 export interface WorkoutExercise {
@@ -81,12 +91,20 @@ export interface WorkoutSet {
   is_warmup: boolean;
   rpe: number | null;
   rir: number | null;
+  // Умные поля
+  target_weight?: number | null;
+  target_reps?: number | null;
+  actual_weight?: number | null;
+  actual_reps?: number | null;
+  one_rm_calc?: number | null;
 }
 
 export interface ProgressionData {
   date: string;
   max_weight: number;
   total_volume: number;
+  // Умные поля
+  one_rm?: number;
 }
 
 export interface AuthResponse {
@@ -129,4 +147,98 @@ export interface MuscleWorkload {
   muscle: string;
   volume: number;
   sets_count: number;
+}
+
+// -----------------------------------------------
+// Новые типы для умной системы (Supabase)
+// -----------------------------------------------
+
+export interface SmartSet {
+  id: string;
+  session_exercise_id: string;
+  set_index: number;
+  target_weight: number | null;
+  target_reps: number | null;
+  actual_weight: number | null;
+  actual_reps: number | null;
+  rpe: number | null;
+  one_rm_calc: number | null;
+  is_warmup: boolean;
+  is_done: boolean;
+  rest_after_seconds: number | null;
+  created_at: string;
+}
+
+export interface SessionExercise {
+  id: string;
+  session_id: string;
+  exercise_ref_id: number | null;
+  exercise_name: string;
+  order_index: number;
+  muscle_weights: Record<string, number>;
+}
+
+export interface WorkoutSessionSmart {
+  id: string;
+  user_id: string;
+  template_id: number | null;
+  start_time: string;
+  end_time: string | null;
+  actual_duration: number | null;
+  total_volume: number;
+  is_deload: boolean;
+  day_type: DayType;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface ProgressionCache {
+  id: number;
+  user_id: string;
+  exercise_ref_id: number;
+  last_weight: number | null;
+  last_reps: number | null;
+  last_one_rm: number | null;
+  last_rpe: number | null;
+  last_session_date: string | null;
+  updated_at: string;
+}
+
+export interface ExerciseSmart {
+  id: number;
+  name: string;
+  category: string | null;
+  description: string | null;
+  primary_muscle_group: string | null;
+  secondary_muscle_groups: string[];
+  muscle_weights: Record<string, number>;
+  media_url: string | null;
+  biomechanics_tags: string[];
+  created_at: string;
+}
+
+export interface MuscleLoadData {
+  muscle: string;
+  effectiveSets: number;
+  percentOfMRV: number;
+}
+
+export interface DUPTargets {
+  repsMin: number;
+  repsMax: number;
+  intensityFactor: number;
+  restSeconds: number;
+  sets: number;
+  label: string;
+  description: string;
+  emoji: string;
+}
+
+export interface ProgressionSuggestion {
+  targetWeight: number;
+  targetReps: number;
+  basis: 'history' | 'default';
+  dayType: DayType;
+  lastOneRM?: number;
+  confidence: 'high' | 'medium' | 'low';
 }

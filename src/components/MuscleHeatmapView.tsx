@@ -1,144 +1,215 @@
-import React from 'react';
-import { useMuscleDistribution } from '../hooks/useAnalytics';
+import React, { useState } from 'react';
+import { Activity, AlertCircle, TrendingUp, BrainCircuit, Flame, ChevronRight } from 'lucide-react';
+import { useMuscleDistribution, useMuscleLoadPercent, useDeloadTrigger } from '../hooks/useAnalytics';
 import { MUSCLE_TRANSLATIONS } from '../constants';
-import { Activity, AlertCircle, CheckCircle2, TrendingUp } from 'lucide-react';
+import { getMRVColor, muscleLabel } from '../lib/engine';
+import { useAuth } from '../hooks/useAuth';
+
+const MAIN_MUSCLES = [
+  { key: 'chest', icon: '🫁' },
+  { key: 'lats', icon: '🏋️' },
+  { key: 'middle_back', icon: '🔙' },
+  { key: 'lower_back', icon: '🦴' },
+  { key: 'quadriceps', icon: '🦵' },
+  { key: 'hamstrings', icon: '🦵' },
+  { key: 'glutes', icon: '🍑' },
+  { key: 'shoulders', icon: '🏔️' },
+  { key: 'front_delt', icon: '💫' },
+  { key: 'side_delt', icon: '↔️' },
+  { key: 'biceps', icon: '💪' },
+  { key: 'triceps', icon: '🔱' },
+  { key: 'abdominals', icon: '🎯' },
+];
 
 export default function MuscleHeatmapView() {
-  const { data: distribution, isLoading } = useMuscleDistribution('week');
+  const { user } = useAuth();
+  const userId = user?.id || null;
+  const [period, setPeriod] = useState<7 | 14>(7);
 
-  const getMuscleColor = (sets: number) => {
-    if (sets === 0) return '#f1f5f9'; // slate-100
-    if (sets <= 4) return '#4ade80'; // green-400
-    if (sets <= 10) return '#facc15'; // yellow-400
-    return '#ef4444'; // red-500
+  // Умная нагрузка через Supabase + engine
+  const { data: smartLoad, isLoading: isLoadingSmart } = useMuscleLoadPercent(userId, period);
+  // Deload анализ
+  const { data: deload } = useDeloadTrigger(userId);
+  // Старые данные (FastAPI) как фолбэк
+  const { data: legacyDist, isLoading: isLoadingLegacy } = useMuscleDistribution('week');
+
+  const isLoading = isLoadingSmart && isLoadingLegacy;
+
+  // Получаем процент нагрузки: приоритет — умные данные из Supabase
+  const getMusclePercent = (key: string): number => {
+    if (smartLoad && Object.keys(smartLoad).length > 0) {
+      return smartLoad[key]?.percentOfMRV || 0;
+    }
+    // Фолбэк: старые данные (sets_count → приблизительный %)
+    const legacy = legacyDist?.find(d => d.muscle === key);
+    return legacy ? Math.min(Math.round((legacy.sets_count / 20) * 100), 120) : 0;
   };
 
-  const getStatusInfo = (muscle: string, sets: number) => {
-    const name = (MUSCLE_TRANSLATIONS as any)[muscle] || muscle;
-    if (sets === 0) return { label: 'Нет нагрузки', color: 'text-slate-400', icon: <AlertCircle size={14} />, tip: `Мышцы ${name} не задействованы на этой неделе.` };
-    if (sets <= 4) return { label: 'Легкая', color: 'text-green-500', icon: <CheckCircle2 size={14} />, tip: `Хорошая поддерживающая нагрузка на ${name}.` };
-    if (sets <= 10) return { label: 'Оптимальная', color: 'text-yellow-500', icon: <TrendingUp size={14} />, tip: `Отличный объем для гипертрофии ${name}.` };
-    return { label: 'Высокая', color: 'text-red-500', icon: <AlertCircle size={14} />, tip: `Внимание: риск перетренированности ${name}. Рекомендуется отдых.` };
-  };
+  const hasSmartData = smartLoad && Object.keys(smartLoad).length > 0;
 
-  const muscleData = (distribution || []).reduce((acc, curr) => {
-    let muscle = curr.muscle;
-    // Map specific groups to the main diagram keys
-    if (['biceps', 'triceps', 'forearms'].includes(muscle)) muscle = 'arms';
-    if (['quadriceps', 'hamstrings', 'glutes', 'calves', 'abductors', 'adductors'].includes(muscle)) muscle = 'legs';
-    if (['lats', 'middle back', 'lower back', 'traps'].includes(muscle)) muscle = 'back';
-    if (['abdominals'].includes(muscle)) muscle = 'abs';
-    
-    acc[muscle] = (acc[muscle] || 0) + curr.sets_count;
-    return acc;
-  }, {} as Record<string, number>);
-
-  if (isLoading) return <div className="p-10 text-center animate-pulse text-tg-hint">Анализируем ваши тренировки...</div>;
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-3">
+        <BrainCircuit className="animate-pulse text-tg-link" size={40} />
+        <p className="text-tg-hint font-medium text-sm">Анализируем нагрузку...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 pb-10">
-      <div className="bg-tg-secondaryBg p-6 rounded-[2.5rem] shadow-sm border border-slate-50 relative overflow-hidden">
-        <h2 className="text-xl font-black text-tg-text mb-1">Прогрессия мышц</h2>
-        <p className="text-xs text-tg-hint mb-6 font-medium">Обзор нагрузки спереди и сзади</p>
-        
-        <div className="flex flex-col gap-8 items-center mt-4">
-          <div className="flex justify-around w-full gap-4">
-             {/* Front View */}
-             <div className="flex flex-col items-center gap-3">
-                <span className="text-[10px] font-black text-tg-hint uppercase tracking-tighter opacity-50">Вид спереди</span>
-                <div className="relative w-32 h-64 scale-110 origin-top">
-                   <svg viewBox="0 0 100 200" className="w-full h-full drop-shadow-md">
-                      {/* Shoulders Front */}
-                      <circle cx="25" cy="50" r="6" fill={getMuscleColor(muscleData['shoulders'] || 0)} />
-                      <circle cx="75" cy="50" r="6" fill={getMuscleColor(muscleData['shoulders'] || 0)} />
-                      {/* Chest */}
-                      <rect x="33" y="55" width="34" height="25" rx="4" fill={getMuscleColor(muscleData['chest'] || 0)} />
-                      {/* Abs */}
-                      <rect x="38" y="85" width="24" height="30" rx="3" fill={getMuscleColor(muscleData['abs'] || 0)} />
-                      {/* Biceps (Arms Front) */}
-                      <path d="M22 60 L18 100" strokeWidth="10" strokeLinecap="round" stroke={getMuscleColor(muscleData['arms'] || 0)} />
-                      <path d="M78 60 L82 100" strokeWidth="10" strokeLinecap="round" stroke={getMuscleColor(muscleData['arms'] || 0)} />
-                      {/* Quads (Legs Front) */}
-                      <path d="M40 120 L35 185" strokeWidth="14" strokeLinecap="round" stroke={getMuscleColor(muscleData['legs'] || 0)} />
-                      <path d="M60 120 L65 185" strokeWidth="14" strokeLinecap="round" stroke={getMuscleColor(muscleData['legs'] || 0)} />
-                      {/* Head */}
-                      <circle cx="50" cy="25" r="12" fill="#f8fafc" stroke="#e2e8f0" strokeWidth="0.5" />
-                   </svg>
-                </div>
-             </div>
+    <div className="space-y-4 animate-in fade-in duration-500 pb-10">
 
-             {/* Back View */}
-             <div className="flex flex-col items-center gap-3">
-                <span className="text-[10px] font-black text-tg-hint uppercase tracking-tighter opacity-50">Вид сзади</span>
-                <div className="relative w-32 h-64 scale-110 origin-top">
-                   <svg viewBox="0 0 100 200" className="w-full h-full drop-shadow-md">
-                      {/* Middle/Upper Back */}
-                      <path d="M33 50 L67 50 L60 90 L40 90 Z" fill={getMuscleColor(muscleData['back'] || 0)} />
-                      {/* Triceps (Arms Back) */}
-                      <path d="M22 60 L18 100" strokeWidth="8" strokeLinecap="round" stroke={getMuscleColor(muscleData['arms'] || 0)} opacity="0.6" />
-                      <path d="M78 60 L82 100" strokeWidth="8" strokeLinecap="round" stroke={getMuscleColor(muscleData['arms'] || 0)} opacity="0.6" />
-                      {/* Glutes/Hamstrings (Legs Back) */}
-                      <rect x="36" y="115" width="28" height="20" rx="4" fill={getMuscleColor(muscleData['legs'] || 0)} opacity="0.8" />
-                      <path d="M40 135 L38 185" strokeWidth="10" strokeLinecap="round" stroke={getMuscleColor(muscleData['legs'] || 0)} />
-                      <path d="M60 135 L62 185" strokeWidth="10" strokeLinecap="round" stroke={getMuscleColor(muscleData['legs'] || 0)} />
-                      {/* Head */}
-                      <circle cx="50" cy="25" r="12" fill="#f8fafc" stroke="#e2e8f0" strokeWidth="0.5" />
-                   </svg>
-                </div>
-             </div>
+      {/* Deload Alert */}
+      {deload?.shouldDeload && (
+        <div className="bg-orange-500/10 border border-orange-500/30 rounded-2xl p-4 flex gap-3">
+          <Flame className="text-orange-400 shrink-0 mt-0.5" size={20} />
+          <div>
+            <p className="font-bold text-orange-400 text-sm mb-1">Рекомендуется Deload</p>
+            <p className="text-xs text-orange-300/80">{deload.reason}</p>
           </div>
+        </div>
+      )}
 
-          <div className="grid grid-cols-2 gap-3 w-full">
-            {['chest', 'back', 'legs', 'shoulders', 'arms', 'abs'].map(m => {
-              const sets = muscleData[m] || 0;
-              const info = getStatusInfo(m, sets);
-              return (
-                <div key={m} className="bg-tg-bg/50 p-3 rounded-2xl border border-slate-50 flex items-center justify-between">
-                  <div className="min-w-0">
-                    <h4 className="text-[10px] font-black text-tg-text truncate">{(MUSCLE_TRANSLATIONS as any)[m] || m}</h4>
-                    <div className={`flex items-center gap-1 text-[8px] font-bold ${info.color}`}>
-                      {info.label}
-                    </div>
+      {/* Заголовок + период */}
+      <div className="bg-tg-secondaryBg p-5 rounded-[2rem] border border-slate-100/10">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h2 className="text-xl font-black text-tg-text">Карта нагрузки</h2>
+            <p className="text-xs text-tg-hint">% от недельного MRV (норма: 20 сетов)</p>
+          </div>
+          <div className="flex gap-1 bg-tg-bg rounded-xl p-1">
+            {([7, 14] as const).map(d => (
+              <button
+                key={d}
+                onClick={() => setPeriod(d)}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                  period === d ? 'bg-tg-link text-white' : 'text-tg-hint'
+                }`}
+              >
+                {d}д
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {!hasSmartData && (
+          <div className="flex items-center gap-2 mb-3 px-2 py-2 bg-tg-bg rounded-xl text-xs text-tg-hint">
+            <AlertCircle size={14} className="shrink-0" />
+            <span>Умная аналитика появится после первой тренировки с подсказками</span>
+          </div>
+        )}
+
+        {/* Прогрессбары мышц */}
+        <div className="space-y-2.5">
+          {MAIN_MUSCLES.map(({ key, icon }) => {
+            const percent = getMusclePercent(key);
+            if (percent === 0 && !hasSmartData) return null;
+            const color = getMRVColor(percent);
+            const label = muscleLabel(key) || (MUSCLE_TRANSLATIONS as any)[key] || key;
+
+            return (
+              <div key={key}>
+                <div className="flex justify-between items-center mb-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-base leading-none">{icon}</span>
+                    <span className="text-xs font-bold text-tg-text">{label}</span>
                   </div>
-                  <div className="text-right shrink-0">
-                    <span className="text-sm font-black text-tg-text">{sets}</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] font-bold ${color.text}`}>{color.label}</span>
+                    <span className="text-xs font-black text-tg-text w-8 text-right">{percent}%</span>
                   </div>
                 </div>
-              );
-            })}
-          </div>
+                <div className="h-2 bg-tg-bg rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{
+                      width: `${Math.min(percent, 100)}%`,
+                      backgroundColor: color.bar,
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Если нет данных вообще */}
+          {MAIN_MUSCLES.every(({ key }) => getMusclePercent(key) === 0) && (
+            <div className="text-center py-6">
+              <AlertCircle className="mx-auto mb-2 text-tg-hint opacity-30" size={32} />
+              <p className="text-sm text-tg-hint">Нет тренировок за {period} дней</p>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="space-y-4">
-        <h3 className="text-lg font-black text-tg-text flex items-center gap-2 px-2">
-           <Activity className="text-tg-link" size={20} />
-           Smart Рекомендации
-        </h3>
-        
-        <div className="grid gap-3">
-           {distribution?.length === 0 ? (
-             <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl flex gap-3">
-               <AlertCircle className="text-blue-500 shrink-0" size={20} />
-               <p className="text-sm text-blue-700">На этой неделе еще не было тренировок. Самое время начать!</p>
-             </div>
-           ) : (
-             distribution?.map(d => {
-               const info = getStatusInfo(d.muscle, d.sets_count);
-               if (d.sets_count === 0) return null;
-               return (
-                 <div key={d.muscle} className="bg-tg-secondaryBg p-4 rounded-2xl shadow-sm border border-slate-50 flex gap-4">
-                   <div className={`p-3 rounded-xl shrink-0 h-fit ${d.sets_count > 10 ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'}`}>
-                      {info.icon}
-                   </div>
-                   <p className="text-sm text-tg-text font-medium leading-relaxed">
-                     {info.tip}
-                   </p>
-                 </div>
-               );
-             })
-           )}
+      {/* Легенда */}
+      <div className="bg-tg-secondaryBg p-4 rounded-2xl border border-slate-100/10">
+        <h3 className="text-xs font-black text-tg-hint uppercase tracking-wider mb-3">Легенда</h3>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { range: '0–30%', label: 'Недогрузка', color: '#22c55e' },
+            { range: '30–60%', label: 'Нормально', color: '#4ade80' },
+            { range: '60–80%', label: 'Оптимально', color: '#facc15' },
+            { range: '80–100%', label: 'Высокая', color: '#f97316' },
+            { range: '>100%', label: 'Перегрузка', color: '#ef4444' },
+          ].map(item => (
+            <div key={item.range} className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+              <span className="text-[10px] text-tg-hint">
+                <span className="font-bold text-tg-text">{item.range}</span> — {item.label}
+              </span>
+            </div>
+          ))}
         </div>
+      </div>
+
+      {/* Рекомендации */}
+      <div className="space-y-3">
+        <h3 className="text-base font-black text-tg-text flex items-center gap-2 px-1">
+          <Activity className="text-tg-link" size={18} />
+          Smart Рекомендации
+        </h3>
+
+        {hasSmartData ? (
+          Object.entries(smartLoad)
+            .filter(([, data]) => data.percentOfMRV > 0)
+            .sort(([, a], [, b]) => b.percentOfMRV - a.percentOfMRV)
+            .slice(0, 5)
+            .map(([muscle, data]) => {
+              const color = getMRVColor(data.percentOfMRV);
+              let tip = '';
+              if (data.percentOfMRV < 30) tip = `Мышца "${muscleLabel(muscle)}" почти не нагружена. Добавьте изолирующее упражнение.`;
+              else if (data.percentOfMRV < 80) tip = `Хорошая нагрузка на "${muscleLabel(muscle)}": ${data.effectiveSets} эфф. сетов.`;
+              else if (data.percentOfMRV < 100) tip = `Высокая нагрузка на "${muscleLabel(muscle)}". Следите за восстановлением.`;
+              else tip = `Перегрузка "${muscleLabel(muscle)}"! ${data.percentOfMRV}% от MRV. Рекомендуется снизить объём.`;
+
+              return (
+                <div key={muscle} className="bg-tg-secondaryBg p-4 rounded-2xl border border-slate-100/10 flex gap-3">
+                  <div className={`p-2 rounded-xl shrink-0 h-fit ${color.bg}`}>
+                    <TrendingUp size={14} className={color.text} />
+                  </div>
+                  <p className="text-sm text-tg-text leading-relaxed">{tip}</p>
+                </div>
+              );
+            })
+        ) : (
+          legacyDist?.filter(d => d.sets_count > 0).slice(0, 4).map(d => {
+            const name = (MUSCLE_TRANSLATIONS as any)[d.muscle] || d.muscle;
+            return (
+              <div key={d.muscle} className="bg-tg-secondaryBg p-4 rounded-2xl border border-slate-100/10 flex gap-3">
+                <div className="p-2 rounded-xl bg-tg-bg shrink-0">
+                  <Activity size={14} className="text-tg-link" />
+                </div>
+                <p className="text-sm text-tg-text">{name}: {d.sets_count} подходов на неделе</p>
+              </div>
+            );
+          }) || (
+            <div className="bg-tg-bg border border-slate-100/10 p-4 rounded-2xl flex gap-3">
+              <AlertCircle className="text-tg-hint shrink-0" size={20} />
+              <p className="text-sm text-tg-hint">На этой неделе ещё не было тренировок</p>
+            </div>
+          )
+        )}
       </div>
     </div>
   );
