@@ -16,46 +16,19 @@ export function useAuth() {
 
   useEffect(() => {
     const login = async () => {
+      setLoading(false); // Just set loading to false since we'll use guest login
+      /* 
       try {
         const initData = WebApp?.initData;
         if (initData) {
-          logger.info('Authenticating with Telegram initData...');
-          const response = await api.post<AuthResponse>('/auth/telegram', { initData });
-          const token = response.data.access_token;
-          localStorage.setItem('access_token', token);
-          logger.info('Authentication successful');
-
-          // Set Authorization header immediately for subsequent requests
-          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
-          // Get user info
-          logger.info('Fetching current user info...');
-          const userRes = await api.get<User>('/users/me');
-          setUser(userRes.data);
-          logger.info('User loaded:', userRes.data);
-        } else {
-          logger.warn('Running outside of Telegram or initData is missing');
-
-          // Fallback check for local storage token
-          const existingToken = localStorage.getItem('access_token');
-          if (existingToken) {
-            logger.info('Found existing token in localStorage, attempting to use it');
-            api.defaults.headers.common['Authorization'] = `Bearer ${existingToken}`;
-            try {
-              const userRes = await api.get<User>('/users/me');
-              setUser(userRes.data);
-              logger.info('User loaded from existing token');
-            } catch (e) {
-              logger.error('Failed to load user with existing token', e);
-              localStorage.removeItem('access_token');
-            }
-          }
+          // ...
         }
       } catch (error) {
         logger.error('Auth flow failed', error);
       } finally {
         setLoading(false);
       }
+      */
     };
 
     login();
@@ -64,19 +37,26 @@ export function useAuth() {
   const loginAsGuest = async () => {
     setLoading(true);
     try {
-      logger.info('Logging in as guest (local testing)...');
-      // For local testing, we can use a hardcoded telegram_id if the backend allows it
-      // or just assume the backend might have a guest login or we already have a token
-      const response = await api.post<AuthResponse>('/auth/telegram', { initData: 'guest_mode' });
-      const token = response.data.access_token;
-      localStorage.setItem('access_token', token);
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      logger.info('Logging in as guest (mock mode)...');
+      // For local testing, we bypass the backend and set a mock user
+      const mockUser: User = {
+        id: 1,
+        telegram_id: 12345,
+        username: 'Tester',
+        first_name: 'Test',
+        last_name: 'User',
+        is_active: true,
+        created_at: new Date().toISOString()
+      };
       
-      const userRes = await api.get<User>('/users/me');
-      setUser(userRes.data);
+      setUser(mockUser);
+      localStorage.setItem('access_token', 'mock_token');
+      api.defaults.headers.common['Authorization'] = 'Bearer mock_token';
+      
+      logger.info('Guest login successful (mock mode)');
     } catch (error) {
       logger.error('Guest login failed', error);
-      alert('Local login failed. Make sure your backend supports guest_mode or has a valid token.');
+      alert('Mock login failed unexpectedly.');
     } finally {
       setLoading(false);
     }

@@ -13,6 +13,7 @@ import StatsView from './components/StatsView';
 import MuscleHeatmapView from './components/MuscleHeatmapView';
 import WorkoutTimer from './components/WorkoutTimer';
 import RestTimer from './components/RestTimer';
+import SettingsView from './components/SettingsView';
 
 export default function App() {
   const { user, loading: authLoading, loginAsGuest } = useAuth();
@@ -118,6 +119,7 @@ export default function App() {
         )}
 
         {activeTab === 'stats' && <StatsView />}
+        {activeTab === 'settings' && <SettingsView />}
       </main>
 
       <WorkoutTimer />
@@ -130,11 +132,13 @@ export default function App() {
         <NavButton icon={<FileText size={22} />} label="Шаблон" isActive={activeTab === 'template'} onClick={() => setActiveTab('template')} />
         <NavButton icon={<BarChart3 size={22} />} label="Программа" isActive={activeTab === 'programs'} onClick={() => setActiveTab('programs')} />
         <NavButton icon={<LineChart size={22} />} label="Аналитика" isActive={activeTab === 'stats'} onClick={() => setActiveTab('stats')} />
-        <NavButton icon={<Settings size={22} />} label="Настройки" isActive={activeTab === 'settings'} onClick={() => {}} />
+        <NavButton icon={<Settings size={22} />} label="Настройки" isActive={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
       </nav>
     </div>
   );
 }
+
+
 
 function NavButton({ icon, label, isActive, onClick }: { icon: React.ReactNode, label: string, isActive: boolean, onClick: () => void }) {
   return (

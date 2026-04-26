@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Dumbbell, Trash2, X, Search, Copy, CheckCircle2, Loader2, Zap, Brain, Target } from 'lucide-react';
 import WebApp from '../lib/telegram';
 import ExerciseDBModal from './ExerciseDBModal';
-import { useStartWorkout, useAddExerciseToSession, useAddSet, useCompleteWorkout } from '../hooks/useWorkouts';
+import { useStartWorkout, useAddExerciseToSession, useAddSet, useCompleteWorkout, useDeleteWorkout } from '../hooks/useWorkouts';
 import { useGetProgramPlans, useGetPlanExercises } from '../hooks/usePrograms';
 import { useExercises } from '../hooks/useExercises';
 import { useAuth } from '../hooks/useAuth';
@@ -88,7 +88,7 @@ export default function AddWorkoutSessionView({
   useEffect(() => {
     if (initialTemplate && !activePlanId && isLoadingPlans) return;
     if (user && !session && !startWorkoutMutation.isPending && !startWorkoutMutation.isError) {
-      startWorkoutMutation.mutate({ planId: activePlanId || undefined }, {
+      startWorkoutMutation.mutate({ userId: user.id, planId: activePlanId || undefined }, {
         onSuccess: (newSession) => setSession(newSession),
         onError: (err) => console.error('Failed to start workout session', err),
       });
@@ -157,15 +157,19 @@ export default function AddWorkoutSessionView({
     }
 
     setSaveProgress({ current: 0, total: completedExercises.length });
+    console.log('Starting handleSave with session:', session.id, 'exercises:', completedExercises.length);
     try {
       for (let i = 0; i < completedExercises.length; i++) {
         const ex = completedExercises[i];
+        console.log(`Saving exercise ${i+1}/${completedExercises.length}: ${ex.name} (id: ${ex.exercise_id})`);
         const workoutEx = await addExerciseMutation.mutateAsync({
           sessionId: session.id,
           exerciseId: ex.exercise_id,
         });
+        console.log('Exercise saved, ID:', workoutEx.id);
 
         const doneSets = ex.sets.filter((s: any) => s.isDone);
+        console.log(`Saving ${doneSets.length} sets for ${ex.name}`);
         for (const set of doneSets) {
           await addSetMutation.mutateAsync({
             workoutExerciseId: workoutEx.id,
@@ -176,12 +180,12 @@ export default function AddWorkoutSessionView({
               rest_time_seconds: null,
               is_warmup: false,
               rpe: set.rpe,
-              rir: null,
             },
           });
 
           // Обновляем кеш прогрессии в Supabase
           if (user && set.weight > 0 && set.reps > 0) {
+            console.log('Updating progression cache for exercise:', ex.exercise_id);
             updateProgressionCache.mutate({
               userId: user.id,
               exerciseId: ex.exercise_id,
@@ -194,10 +198,13 @@ export default function AddWorkoutSessionView({
         setSaveProgress({ current: i + 1, total: completedExercises.length });
       }
 
+      console.log('Completing workout session:', session.id);
       await completeWorkoutMutation.mutateAsync(session.id);
+      console.log('Workout completed successfully');
       WebApp?.HapticFeedback?.notificationOccurred('success');
       onSave();
     } catch (error) {
+      console.error('Failed to save workout:', error);
       logger.error('Failed to save workout', error);
       WebApp?.HapticFeedback?.notificationOccurred('error');
       alert('Ошибка при сохранении. Попробуйте ещё раз.');
@@ -478,16 +485,26 @@ export default function AddWorkoutSessionView({
           <Search size={18} /> Из базы
         </button>
 
-        <div className="pt-2 flex gap-3 sticky bottom-0 pb-20 bg-tg-secondaryBg">
-          <button onClick={handleCancel} className="flex-1 py-3 rounded-xl font-bold bg-tg-bg text-tg-text text-sm">
+        <div className="fixed bottom-24 left-4 right-4 z-[200] flex gap-3">
+          <button 
+            onClick={() => {
+              console.log('Cancel clicked');
+              handleCancel();
+            }} 
+            className="flex-1 py-4 rounded-2xl font-bold bg-tg-secondaryBg/90 backdrop-blur-md text-tg-text border border-slate-100/10 shadow-xl active:scale-95 transition-all"
+          >
             Отмена
           </button>
           <button
-            onClick={handleSave}
-            disabled={sessionExercises.length === 0 || !session}
-            className="flex-1 py-3 bg-green-600 disabled:bg-slate-600 text-white rounded-xl font-bold text-sm"
+            onClick={() => {
+              console.log('Finish clicked');
+              handleSave();
+            }}
+            disabled={sessionExercises.length === 0 || !session || completeWorkoutMutation.isPending}
+            className="flex-[2] py-4 bg-green-600 disabled:bg-slate-600 text-white rounded-2xl font-black shadow-2xl shadow-green-500/40 active:scale-95 transition-all flex items-center justify-center gap-2"
           >
-            {completeWorkoutMutation.isPending ? '...' : 'Завершить'}
+            {completeWorkoutMutation.isPending ? <Loader2 className="animate-spin" size={20} /> : <CheckCircle2 size={20} />}
+            {completeWorkoutMutation.isPending ? 'СОХРАНЕНИЕ...' : 'ЗАВЕРШИТЬ ТРЕНИРОВКУ'}
           </button>
         </div>
       </div>

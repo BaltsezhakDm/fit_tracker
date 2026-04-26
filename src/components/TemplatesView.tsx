@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Plus, Lock, MoreHorizontal } from 'lucide-react';
+import { Search, Plus, Lock, MoreHorizontal, TrendingUp } from 'lucide-react';
 import { usePrograms } from '../hooks/usePrograms';
 import { useUIStore } from '../store/useUIStore';
 

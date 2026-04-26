@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Save, Dumbbell, Tag, AlignLeft } from 'lucide-react';
-import api from '../api/client';
+import { supabase } from '../lib/supabaseClient';
 import { useQueryClient } from '@tanstack/react-query';
 import { MUSCLE_TRANSLATIONS } from '../constants';
 
@@ -24,7 +24,19 @@ export default function CreateExerciseModal({ onClose, onCreated }: CreateExerci
 
     setLoading(true);
     try {
-      const { data } = await api.post('/exercises/', formData);
+      const { data, error } = await supabase
+        .from('exercises_smart')
+        .insert({
+          name: formData.name,
+          primary_muscle_group: formData.primary_muscle_group,
+          description: formData.description,
+          muscle_weights: { [formData.primary_muscle_group]: 1.0 },
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
       queryClient.invalidateQueries({ queryKey: ['exercises'] });
       onCreated(data);
     } catch (error) {

@@ -53,7 +53,7 @@ export default function CreateProgramView({ onSave, onCancel }: CreateProgramVie
   useEffect(() => {
     if (editingProgram && planExercises && exercisesList && selectedExercises.length === 0) {
       const initialExercises = planExercises.map(pe => {
-        const baseEx = exercisesList.find(e => e.id === pe.exercise_id);
+        const baseEx = exercisesList?.find(e => e.id === pe.exercise_id);
         return {
           ...baseEx,
           id: pe.exercise_id, // Ensure we use the correct ID
@@ -63,7 +63,7 @@ export default function CreateProgramView({ onSave, onCancel }: CreateProgramVie
       });
       setSelectedExercises(initialExercises);
     }
-  }, [planExercises, exercisesList, editingProgram]);
+  }, [planExercises, exercisesList, editingProgram, selectedExercises.length]);
 
   const handleAddExercise = (exercise: any) => {
     logger.action('Adding exercise to program template', exercise);
@@ -104,9 +104,12 @@ export default function CreateProgramView({ onSave, onCancel }: CreateProgramVie
         }
       } else {
         // 1. Create new program
-        program = await createProgramMutation.mutateAsync({ name, description });
+        program = await createProgramMutation.mutateAsync({ 
+          userId: user?.id || '1', 
+          program: { name, description } 
+        });
         
-        // 2. Create default plan
+        // 2. Create default plan (which is the program itself in our schema)
         const plan = await createPlanMutation.mutateAsync({
           name: 'Основная тренировка',
           program_id: program.id,

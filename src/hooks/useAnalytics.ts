@@ -32,12 +32,29 @@ import {
 // Старые хуки (FastAPI) — совместимость
 // -----------------------------------------------
 
+// -----------------------------------------------
+// Старые хуки (FastAPI) — совместимость через Supabase
+// -----------------------------------------------
+
 export function useAnalyticsSummary() {
   return useQuery({
     queryKey: ['analytics', 'summary'],
-    queryFn: async () => {
-      const { data } = await api.get<AnalyticsSummary>('/analytics/summary');
-      return data;
+    queryFn: async (): Promise<AnalyticsSummary> => {
+      const { data: sessions } = await supabase
+        .from('workout_sessions_smart')
+        .select('total_volume, id')
+        .not('end_time', 'is', null);
+
+      const totalVolume = sessions?.reduce((acc, s) => acc + (s.total_volume || 0), 0) || 0;
+      const workoutsCount = sessions?.length || 0;
+
+      // Mock other fields for now
+      return {
+        total_volume: totalVolume,
+        workouts_count: workoutsCount,
+        last_week_volume_change_percent: 0,
+        records_count: 0,
+      };
     },
   });
 }
@@ -45,9 +62,23 @@ export function useAnalyticsSummary() {
 export function useWorkload(period: string = 'week') {
   return useQuery({
     queryKey: ['analytics', 'workload', period],
-    queryFn: async () => {
-      const { data } = await api.get<WorkloadData[]>(`/analytics/workload?period=${period}`);
-      return data;
+    queryFn: async (): Promise<WorkloadData[]> => {
+      const since = new Date();
+      since.setDate(since.getDate() - (period === 'week' ? 7 : 30));
+
+      const { data } = await supabase
+        .from('workout_sessions_smart')
+        .select('start_time, total_volume')
+        .gte('start_time', since.toISOString())
+        .order('start_time', { ascending: true });
+
+      const workloadMap: Record<string, number> = {};
+      data?.forEach(s => {
+        const date = s.start_time.split('T')[0];
+        workloadMap[date] = (workloadMap[date] || 0) + (s.total_volume || 0);
+      });
+
+      return Object.entries(workloadMap).map(([date, volume]) => ({ date, volume }));
     },
   });
 }
@@ -55,19 +86,38 @@ export function useWorkload(period: string = 'week') {
 export function usePersonalRecords() {
   return useQuery({
     queryKey: ['analytics', 'records'],
-    queryFn: async () => {
-      const { data } = await api.get<PersonalRecord[]>('/analytics/records');
-      return data;
+    queryFn: async (): Promise<PersonalRecord[]> => {
+      // In a real app, we'd query the progression_cache or smart_sets
+      const { data } = await supabase
+        .from('progression_cache')
+        .select('*, exercises_smart(name)');
+      
+      return (data || []).map(r => ({
+        exercise_id: r.exercise_ref_id,
+        exercise_name: (r as any).exercises_smart?.name || 'Unknown',
+        weight: r.last_weight || 0,
+        date: r.last_session_date || r.updated_at,
+      }));
     },
   });
 }
 
-export function useExerciseProgression(userId: number, exerciseId: number) {
+export function useExerciseProgression(userId: string | number, exerciseId: number) {
   return useQuery({
     queryKey: ['analytics', 'progression', exerciseId],
-    queryFn: async () => {
-      const { data } = await api.get<ProgressionData[]>(`/analytics/progression/${exerciseId}`);
-      return data;
+    queryFn: async (): Promise<ProgressionData[]> => {
+      const { data } = await supabase
+        .from('smart_sets')
+        .select('actual_weight, created_at, session_exercises!inner(exercise_ref_id, workout_sessions_smart!inner(total_volume))')
+        .eq('session_exercises.exercise_ref_id', exerciseId)
+        .eq('is_done', true)
+        .order('created_at', { ascending: true });
+
+      return (data || []).map(s => ({
+        date: s.created_at,
+        max_weight: s.actual_weight || 0,
+        total_volume: (s as any).session_exercises?.workout_sessions_smart?.total_volume || 0,
+      }));
     },
     enabled: !!exerciseId && !!userId,
   });
@@ -76,9 +126,34 @@ export function useExerciseProgression(userId: number, exerciseId: number) {
 export function useMuscleDistribution(period: string = 'week') {
   return useQuery({
     queryKey: ['analytics', 'muscle-distribution', period],
-    queryFn: async () => {
-      const { data } = await api.get<MuscleWorkload[]>(`/analytics/muscle-distribution?period=${period}`);
-      return data;
+    queryFn: async (): Promise<MuscleWorkload[]> => {
+      const since = new Date();
+      since.setDate(since.getDate() - (period === 'week' ? 7 : 30));
+
+      const { data } = await supabase
+        .from('smart_sets')
+        .select('actual_weight, session_exercises!inner(muscle_weights, workout_sessions_smart!inner(start_time))')
+        .eq('is_done', true)
+        .gte('session_exercises.workout_sessions_smart.start_time', since.toISOString());
+
+      const muscleMap: Record<string, { volume: number; sets: number }> = {};
+      data?.forEach(s => {
+        const se = (s as any).session_exercises;
+        const weights = se.muscle_weights || {};
+        const volume = s.actual_weight || 0;
+
+        Object.entries(weights).forEach(([muscle, weight]) => {
+          if (!muscleMap[muscle]) muscleMap[muscle] = { volume: 0, sets: 0 };
+          muscleMap[muscle].volume += volume * (weight as number);
+          muscleMap[muscle].sets += 1 * (weight as number);
+        });
+      });
+
+      return Object.entries(muscleMap).map(([muscle, stats]) => ({
+        muscle,
+        volume: stats.volume,
+        sets_count: Math.round(stats.sets),
+      }));
     },
   });
 }
