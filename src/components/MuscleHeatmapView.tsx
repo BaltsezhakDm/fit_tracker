@@ -31,9 +31,10 @@ export default function MuscleHeatmapView() {
   // Deload анализ
   const { data: deload } = useDeloadTrigger(userId);
   // Старые данные (FastAPI) как фолбэк
-  const { data: legacyDist, isLoading: isLoadingLegacy } = useMuscleDistribution('week');
+  const { data: legacyDist, isLoading: isLoadingLegacy } = useMuscleDistribution(userId, 'week');
 
-  const isLoading = isLoadingSmart && isLoadingLegacy;
+  const isLoading = isLoadingSmart || isLoadingLegacy;
+
 
   // Получаем процент нагрузки: приоритет — умные данные из Supabase
   const getMusclePercent = (key: string): number => {

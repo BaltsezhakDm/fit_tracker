@@ -86,14 +86,19 @@ export default function AddWorkoutSessionView({
   const initialLoadRef = useRef(false);
 
   useEffect(() => {
-    if (initialTemplate && !activePlanId && isLoadingPlans) return;
-    if (user && !session && !startWorkoutMutation.isPending && !startWorkoutMutation.isError) {
-      startWorkoutMutation.mutate({ userId: user.id, planId: activePlanId || undefined }, {
-        onSuccess: (newSession) => setSession(newSession),
-        onError: (err) => console.error('Failed to start workout session', err),
-      });
-    }
-  }, [user, initialTemplate, session, activePlanId, isLoadingPlans]);
+    // Wait until everything is ready before starting a session
+    if (!user || session || startWorkoutMutation.isPending || startWorkoutMutation.isError) return;
+    
+    // If we have an initial template, wait until plans are loaded
+    if (initialTemplate && isLoadingPlans) return;
+
+    console.log('Session init effect:', { user: user.id, initialTemplate: initialTemplate?.id, activePlanId });
+    
+    startWorkoutMutation.mutate({ userId: user.id, planId: activePlanId || undefined }, {
+      onSuccess: (newSession) => setSession(newSession),
+      onError: (err) => console.error('Failed to start workout session', err),
+    });
+  }, [user?.id, initialTemplate?.id, session?.id, activePlanId, isLoadingPlans]);
 
   useEffect(() => {
     const isReady = initialTemplate
@@ -102,35 +107,32 @@ export default function AddWorkoutSessionView({
 
     if (isReady && !initialLoadRef.current) {
       if (initialTemplate) {
-        if (planExercises) {
-          if (planExercises.length > 0) {
-            const exercisesToLoad = planExercises.map(pe => {
-              const baseEx = exercisesList?.find(e => e.id === pe.exercise_id);
-              return {
-                exercise_id: pe.exercise_id,
-                name: baseEx?.name || 'Упражнение',
-                media_url: baseEx?.media_url,
-                primary_muscle_group: baseEx?.primary_muscle_group,
-                muscle_weights: baseEx?.muscle_weights || {},
-                sets: Array.from({ length: pe.target_sets }).map(() => ({
-                  reps: pe.target_reps,
-                  weight: 0,
-                  rpe: null,
-                  isDone: false,
-                  one_rm: null,
-                })),
-              };
-            });
-            setSessionExercises(exercisesToLoad);
-          }
+        if (planExercises && planExercises.length > 0) {
+          const exercisesToLoad = planExercises.map(pe => {
+            const baseEx = exercisesList?.find(e => e.id === pe.exercise_id);
+            return {
+              exercise_id: pe.exercise_id,
+              name: baseEx?.name || 'Упражнение',
+              media_url: baseEx?.media_url,
+              primary_muscle_group: baseEx?.primary_muscle_group,
+              muscle_weights: baseEx?.muscle_weights || {},
+              sets: Array.from({ length: pe.target_sets }).map(() => ({
+                reps: pe.target_reps,
+                weight: 0,
+                rpe: null,
+                isDone: false,
+                one_rm: null,
+              })),
+            };
+          });
+          setSessionExercises(exercisesToLoad);
           initialLoadRef.current = true;
         }
       } else {
-        // No template, just start empty
         initialLoadRef.current = true;
       }
     }
-  }, [planExercises, exercisesList, isPlanExercisesLoaded, initialTemplate]);
+  }, [planExercises, exercisesList, isPlanExercisesLoaded, initialTemplate?.id]);
 
   const [saveProgress, setSaveProgress] = useState<{ current: number; total: number } | null>(null);
   const startRestTimer = useUIStore(s => s.startRestTimer);
@@ -149,7 +151,7 @@ export default function AddWorkoutSessionView({
   };
 
   const handleSave = useCallback(async () => {
-    if (!session) return;
+    if (!session || !user) return;
     const completedExercises = sessionExercises.filter(ex => ex.sets.some((s: any) => s.isDone));
     if (completedExercises.length === 0) {
       WebApp?.HapticFeedback?.notificationOccurred('warning');
@@ -162,6 +164,7 @@ export default function AddWorkoutSessionView({
       for (let i = 0; i < completedExercises.length; i++) {
         const ex = completedExercises[i];
         console.log(`Saving exercise ${i+1}/${completedExercises.length}: ${ex.name} (id: ${ex.exercise_id})`);
+        
         const workoutEx = await addExerciseMutation.mutateAsync({
           sessionId: session.id,
           exerciseId: ex.exercise_id,
@@ -170,8 +173,10 @@ export default function AddWorkoutSessionView({
 
         const doneSets = ex.sets.filter((s: any) => s.isDone);
         console.log(`Saving ${doneSets.length} sets for ${ex.name}`);
-        for (const set of doneSets) {
-          await addSetMutation.mutateAsync({
+
+        // Сохраняем все сеты упражнения параллельно
+        await Promise.all(doneSets.map((set: any) => 
+          addSetMutation.mutateAsync({
             workoutExerciseId: workoutEx.id,
             set: {
               reps: set.reps,
@@ -181,20 +186,27 @@ export default function AddWorkoutSessionView({
               is_warmup: false,
               rpe: set.rpe,
             },
-          });
+          })
+        ));
 
-          // Обновляем кеш прогрессии в Supabase
-          if (user && set.weight > 0 && set.reps > 0) {
-            console.log('Updating progression cache for exercise:', ex.exercise_id);
-            updateProgressionCache.mutate({
-              userId: user.id,
-              exerciseId: ex.exercise_id,
-              weight: set.weight,
-              reps: set.reps,
-              rpe: set.rpe,
-            });
-          }
+        // Обновляем кеш прогрессии (берем лучший сет или последний)
+        const bestSet = doneSets.reduce((best: any, current: any) => {
+          const currentRM = calcOneRM(current.weight, current.reps);
+          const bestRM = calcOneRM(best.weight, best.reps);
+          return currentRM > bestRM ? current : best;
+        }, doneSets[0]);
+
+        if (bestSet && bestSet.weight > 0 && bestSet.reps > 0) {
+          console.log('Updating progression cache for exercise:', ex.exercise_id);
+          updateProgressionCache.mutate({
+            userId: user.id,
+            exerciseId: ex.exercise_id,
+            weight: bestSet.weight,
+            reps: bestSet.reps,
+            rpe: bestSet.rpe,
+          });
         }
+
         setSaveProgress({ current: i + 1, total: completedExercises.length });
       }
 
@@ -212,6 +224,7 @@ export default function AddWorkoutSessionView({
       setSaveProgress(null);
     }
   }, [session, sessionExercises, onSave, addExerciseMutation, addSetMutation, completeWorkoutMutation, user, updateProgressionCache]);
+
 
   useEffect(() => {
     const mainButton = WebApp?.MainButton;

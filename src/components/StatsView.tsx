@@ -2,13 +2,17 @@ import React, { useEffect } from 'react';
 import { BarChart3, TrendingUp, Calendar, Zap, Award, Loader2 } from 'lucide-react';
 import { logger } from '../lib/logger';
 import { useAnalyticsSummary, useWorkload, usePersonalRecords } from '../hooks/useAnalytics';
+import { useAuth } from '../hooks/useAuth';
 import ExerciseProgressionView from './ExerciseProgressionView';
 
+
 export default function StatsView() {
-  const { data: summary, isLoading: isLoadingSummary } = useAnalyticsSummary();
-  const { data: workload, isLoading: isLoadingWorkload } = useWorkload('week');
-  const { data: records, isLoading: isLoadingRecords } = usePersonalRecords();
+  const { user } = useAuth();
+  const { data: summary, isLoading: isLoadingSummary } = useAnalyticsSummary(user?.id || null);
+  const { data: workload, isLoading: isLoadingWorkload } = useWorkload(user?.id || null, 'week');
+  const { data: records, isLoading: isLoadingRecords } = usePersonalRecords(user?.id || null);
   const [selectedExercise, setSelectedExercise] = React.useState<{id: number, name: string} | null>(null);
+
 
   useEffect(() => {
     logger.action('Viewing Statistics/Analytics');
@@ -46,19 +50,20 @@ export default function StatsView() {
         <StatCard
           icon={<TrendingUp className="text-green-500" size={18} />}
           label="Общий объем"
-          value={summary?.total_volume.toLocaleString() || '0'}
+          value={(summary?.total_volume || 0).toLocaleString()}
           unit="кг"
-          trend={`${summary?.last_week_volume_change_percent.toFixed(1) || 0}%`}
+          trend={`${(summary?.last_week_volume_change_percent || 0).toFixed(1)}%`}
           trendUp={summary ? summary.last_week_volume_change_percent >= 0 : true}
         />
         <StatCard
           icon={<Calendar className="text-blue-500" size={18} />}
           label="Тренировок"
-          value={summary?.workouts_count.toString() || '0'}
+          value={(summary?.workouts_count || 0).toString()}
           unit="шт"
           trend="Всего"
           trendUp={true}
         />
+
       </div>
 
       <div className="bg-tg-secondaryBg p-4 rounded-2xl shadow-sm border border-slate-50">

@@ -5,14 +5,18 @@ import SwipeToDelete from './SwipeToDelete';
 import { logger } from '../lib/logger';
 import WebApp from '../lib/telegram';
 
+import { useAuth } from '../hooks/useAuth';
+
 interface ProgramsViewProps {
   onStart: (program: any) => void;
   onCreateNew: () => void;
 }
 
 export default function ProgramsView({ onStart, onCreateNew }: ProgramsViewProps) {
-  const { data: programs, isLoading } = usePrograms();
+  const { user } = useAuth();
+  const { data: programs, isLoading } = usePrograms(user?.id || null);
   const deleteProgramMutation = useDeleteProgram();
+
 
   if (isLoading) {
     return <div className="text-center py-10 text-tg-hint">Загрузка программ...</div>;

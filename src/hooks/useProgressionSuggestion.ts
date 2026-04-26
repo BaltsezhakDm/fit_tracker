@@ -82,6 +82,7 @@ export function useProgressionSuggestion(
         .order('created_at', { ascending: false })
         .limit(5);
 
+
       if (recentSets && recentSets.length > 0) {
         const last = recentSets[0];
         const w = last.actual_weight || 0;

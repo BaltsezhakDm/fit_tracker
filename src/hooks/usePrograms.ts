@@ -2,24 +2,27 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
 import { TrainingProgram, TrainingPlanRead, TrainingPlanCreate, PlanExerciseCreate, PlanExerciseRead } from '../types/api';
 
-export function usePrograms() {
+export function usePrograms(userId: string | number | null) {
   return useQuery<TrainingProgram[]>({
-    queryKey: ['programs'],
+    queryKey: ['programs', userId],
     queryFn: async () => {
+      if (!userId) return [];
       const { data, error } = await supabase
         .from('workout_templates')
         .select('*')
+        .eq('user_id', String(userId))
         .eq('is_active', true);
       
       if (error) throw error;
       
       return (data || []).map(t => ({
         id: t.id,
-        user_id: 1, // Mocked
+        user_id: t.user_id,
         name: t.name,
         description: t.description,
       })) as TrainingProgram[];
     },
+    enabled: !!userId,
   });
 }
 
@@ -142,13 +145,13 @@ export function useCreateProgram() {
       if (error) throw error;
       return {
         id: data.id,
-        user_id: Number(userId),
+        user_id: data.user_id,
         name: data.name,
         description: data.description,
       } as TrainingProgram;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['programs'] });
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['programs', variables.userId] });
     },
   });
 }
@@ -170,13 +173,13 @@ export function useUpdateProgram() {
       if (error) throw error;
       return {
         id: data.id,
-        user_id: 1,
+        user_id: data.user_id,
         name: data.name,
         description: data.description,
       } as TrainingProgram;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['programs'] });
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['programs', data.user_id] });
     },
   });
 }
@@ -192,4 +195,5 @@ export function useDeletePlanExercises() {
     },
   });
 }
+
 

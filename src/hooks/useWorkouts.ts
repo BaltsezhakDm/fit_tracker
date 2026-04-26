@@ -2,13 +2,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
 import { WorkoutSession, WorkoutSet, WorkoutExercise, DayType } from '../types/api';
 
-export function useWorkouts() {
+export function useWorkouts(userId: string | number | null) {
   return useQuery<WorkoutSession[]>({
-    queryKey: ['workouts'],
+    queryKey: ['workouts', userId],
     queryFn: async () => {
+      if (!userId) return [];
       const { data, error } = await supabase
         .from('workout_sessions_smart')
         .select('*')
+        .eq('user_id', String(userId))
         .order('start_time', { ascending: false });
       
       if (error) throw error;
@@ -18,6 +20,7 @@ export function useWorkouts() {
         status: s.end_time ? 'completed' : 'active',
       })) as WorkoutSession[];
     },
+    enabled: !!userId,
   });
 }
 
@@ -103,8 +106,8 @@ export function useStartWorkout() {
         status: 'active',
       } as WorkoutSession;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['workouts'] });
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['workouts', variables.userId] });
     },
   });
 }
@@ -161,8 +164,9 @@ export function useAddSet() {
       if (error) throw error;
       return data as WorkoutSet;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['workouts'] });
+      queryClient.invalidateQueries({ queryKey: ['workout-exercises', variables.workoutExerciseId, 'sets'] });
     },
   });
 }
@@ -186,8 +190,10 @@ export function useCompleteWorkout() {
         status: 'completed',
       } as WorkoutSession;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['workouts'] });
+      queryClient.invalidateQueries({ queryKey: ['workouts', data.user_id] });
     },
   });
 }
+

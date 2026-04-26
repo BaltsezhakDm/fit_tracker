@@ -3,14 +3,18 @@ import { History, Dumbbell, Calendar as CalendarIcon, ChevronRight, X, Plus } fr
 import { useWorkouts, useDeleteWorkout, useWorkoutExercises, useWorkoutSets } from '../hooks/useWorkouts';
 import { useExercises } from '../hooks/useExercises';
 import { useUIStore } from '../store/useUIStore';
+import { useAuth } from '../hooks/useAuth';
 import SwipeToDelete from './SwipeToDelete';
 import Calendar from './Calendar';
 import { logger } from '../lib/logger';
 import WebApp from '../lib/telegram';
 
 export default function DiaryView() {
-  const { data: workouts, isLoading } = useWorkouts();
+  const { user } = useAuth();
+  const { data: workouts, isLoading } = useWorkouts(user?.id || null);
   const deleteWorkoutMutation = useDeleteWorkout();
+
+
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedWorkout, setSelectedWorkout] = useState<any | null>(null);
   const [isStartModalOpen, setIsStartModalOpen] = useState(false);
